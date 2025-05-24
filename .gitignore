@@ -1,0 +1,7 @@
+logs/
+*.log
+*.old
+.env
+__pycache__/
+PISworm_extracted/
+*.zip

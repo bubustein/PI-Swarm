@@ -1,0 +1,42 @@
+network:
+  interface: auto      # or "auto" for autodetect
+  static_ips:    
+    start_ip: 200        # Not used if script fully autodetects per Pi
+    enabled: true
+  dns: auto       # Used as fallback if no autodetect possible
+  gateway: auto # Used as fallback if no autodetect possible
+  subnet: auto         # or specify, e.g., 192.168.1.0/24
+
+swarm:
+  manager_port: 2377
+  portainer:
+    enabled: true
+    port: 9443
+    ssl: true
+    admin_password: ""  # Prompt if empty
+  monitoring:
+    enabled: false
+    prometheus_port: 9090
+    grafana_port: 3000
+    retention_days: 15
+
+nodes:
+  default_user: ""
+  default_pass: ""
+  manager:
+    count: 1
+    ip_start: 200
+  workers:
+    count: 2
+    ip_start: 210
+
+backup:
+  enabled: true
+  retention_days: 7
+  path: "/opt/pi_swarm_backups"
+
+logging:
+  path: "/var/log/pi_swarm.log"
+  max_size: 10485760
+  rotate: true
+
