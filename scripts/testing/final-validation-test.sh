@@ -96,10 +96,10 @@ fi
 # Test 6: Automated Deployment Script
 echo ""
 echo "🚀 Test 6: Automated Deployment Script..."
-if [[ -x "automated-deploy.sh" ]]; then
+if [[ -x "scripts/deployment/automated-deploy.sh" ]]; then
     echo "✅ Automated deployment script is executable"
     # Check if it has all required inputs
-    input_count=$(grep -c "echo.*#" automated-deploy.sh || true)
+    input_count=$(grep -c "echo.*#" scripts/deployment/automated-deploy.sh || true)
     if [[ $input_count -ge 10 ]]; then
         echo "✅ All interactive prompts handled (${input_count} inputs)"
     else
