@@ -1,3 +1,7 @@
+[![CI](https://github.com/<your-org>/pi-swarm/actions/workflows/test.yml/badge.svg)](https://github.com/<your-org>/pi-swarm/actions/workflows/test.yml)
+
+> **Tip:** For best code quality, run `shellcheck` on all scripts before pushing.
+
 # Pi-Swarm 🐳⚡
 
 **Transform your Raspberry Pi cluster into an enterprise-grade Docker Swarm platform in minutes**
