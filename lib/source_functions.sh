@@ -36,6 +36,7 @@ source_functions() {
         "deployment/setup_pis.sh"
         "deployment/init_swarm.sh"
         "deployment/deploy_services.sh"
+        "deployment/deployment_summary.sh"
         "security/ssl_automation.sh"
         "config/get_config_value.sh" # Add get_config_value to essential functions
         "auth/ssh_secure.sh" # Add ssh_exec and setup_ssh_keys to essential functions

@@ -256,7 +256,7 @@ for PI_IP in "${PI_STATIC_IPS[@]}"; do
 
     if ! ssh_exec "$PI_IP" "$SSH_USER" "$SSH_PASS" "echo Connected"; then
         log WARN "SSH failed: $PI_IP, setting up keys..."
-        setup_ssh_keys "$PI_IP" "$SSH_USER" "$SSH_PASS" || { log ERROR "SSH key setup failed for $PI_IP"; continue; }
+        setup_ssh_keys "$PI_IP" "$SSH_USER" "$SSH_PASS" || { log WARN "SSH key setup failed for $PI_IP (continuing with password auth)"; }
     fi
 
     # Configure Pi and install required software including Docker
@@ -283,8 +283,12 @@ done
 if [[ ${#PI_STATIC_IPS[@]} -gt 0 ]]; then
     init_swarm || { log ERROR "Swarm init failed"; exit 1; }
     
-    # Setup SSL certificates (enhanced with Let's Encrypt support)
-    setup_ssl_certificates "${PI_STATIC_IPS[0]}" "$PI_USER" "$PI_PASS" || log WARN "SSL setup failed"
+    # Setup SSL certificates (enhanced with Let's Encrypt support) - only if enabled
+    if [[ "$ENABLE_LETSENCRYPT" =~ ^(y|yes)$ ]] || [[ -n "${SSL_DOMAIN:-}" ]]; then
+        setup_ssl_certificates "${PI_STATIC_IPS[0]}" "$PI_USER" "$PI_PASS" || log WARN "SSL setup failed"
+    else
+        log INFO "SSL setup skipped (not enabled)"
+    fi
     
     # Initialize service templates for easy deployments
     if command -v init_service_templates >/dev/null 2>&1; then
@@ -482,7 +486,12 @@ echo "   4. Enable SSL automation: ./pi-swarm ssl-setup"
 echo "   5. Monitor cluster health: ./pi-swarm status"
 echo ""
 
-echo "✨ Enterprise Pi-Swarm deployment complete!"
-echo "   Total nodes: ${#PI_STATIC_IPS[@]}"
-echo "   Manager IP: $manager_ip"
-echo "   Features: SSL, Monitoring, Security, Templates, CLI"
+    # Generate deployment summary
+    if command -v deployment_summary >/dev/null 2>&1; then
+        deployment_summary
+    else
+        echo "✨ Enterprise Pi-Swarm deployment complete!"
+        echo "   Total nodes: ${#PI_STATIC_IPS[@]}"
+        echo "   Manager IP: $manager_ip"
+        echo "   Features: SSL, Monitoring, Security, Templates, CLI"
+    fi

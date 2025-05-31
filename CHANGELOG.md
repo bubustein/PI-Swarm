@@ -1,5 +1,27 @@
 # Changelog
 
+## [v2.0.1] - 2025-05-31
+
+### Fixed
+- **Improved Error Messages**: SSH key setup failures now show warnings instead of errors and continue deployment
+- **SSL Configuration Logic**: Fixed SSL certificate setup to only run when explicitly enabled
+- **Enhanced User Feedback**: Added deployment summary with cluster status, service health, and next steps
+- **Better Connectivity Handling**: Improved Pi discovery with unreachable device warnings and helpful tips
+- **Automated Deployment**: Enhanced automated deployment script with connectivity checks and better error handling
+
+### Added
+- **Deployment Summary Function**: Provides comprehensive post-deployment status and guidance
+- **Enhanced Connectivity Validation**: Better error messages and troubleshooting tips for network issues
+- **Improved SSH Key Setup**: More graceful handling of SSH authentication failures
+- **Mock Deployment Testing**: Added testing scripts for validation without requiring hardware
+
+### Changed
+- **Error Severity**: SSH key setup failures are now warnings rather than fatal errors
+- **SSL Setup Logic**: Only runs SSL certificate generation when explicitly enabled
+- **Function Loading**: Added deployment_summary to essential functions
+
+---
+
 ## [v2.0.0] - 2025-05-31
 
 ### Major Changes

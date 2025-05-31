@@ -25,13 +25,13 @@ setup_ssh_keys() {
     
     # Ensure .ssh directory exists on remote using password auth
     if ! sshpass -p "$pass" ssh -o StrictHostKeyChecking=accept-new "$user@$host" "mkdir -p ~/.ssh && chmod 700 ~/.ssh" 2>/dev/null; then
-        log ERROR "Could not create .ssh directory on $host"
+        log WARN "Could not create .ssh directory on $host (may require manual setup)"
         return 1
     fi
     
     # Copy key using password auth
     if ! sshpass -p "$pass" ssh-copy-id -o StrictHostKeyChecking=accept-new -o PasswordAuthentication=yes -o PubkeyAuthentication=no "$user@$host" >/dev/null 2>&1; then
-        log ERROR "Failed to copy SSH key to $host"
+        log WARN "Failed to copy SSH key to $host (will use password authentication)"
         return 1
     fi
     
@@ -40,7 +40,7 @@ setup_ssh_keys() {
         log INFO "Successfully configured SSH keys for $host"
         return 0
     else
-        log ERROR "SSH key authentication verification failed for $host"
+        log WARN "SSH key authentication verification failed for $host (continuing with password auth)"
         return 1
     fi
 }

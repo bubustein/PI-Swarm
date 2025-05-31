@@ -9,10 +9,15 @@ This release marks a major milestone for Pi-Swarm, making it robust, reproducibl
 - **Project Restructuring:** All scripts and functions are now organized by scope for clarity and maintainability.
 - **Modern Docker Support:** Uses Docker Compose V2 plugin by default, with fallback to manual install if needed.
 - **Robust File Copying:** All required config files and templates are copied from the correct locations.
-- **Improved Error Handling:** Enhanced diagnostics for SSH, Docker, file copy, and remote operations.
+- **Enhanced Error Handling:** 
+  - SSH key setup failures are now warnings instead of fatal errors
+  - Better connectivity validation with graceful degradation
+  - Improved error messages throughout the deployment process
+  - SSL setup only runs when explicitly enabled
 - **Automated Testing:** Comprehensive test and deployment scripts ensure project integrity and reproducibility.
 - **CI/CD Integration:** GitHub Actions workflow for automated testing and CI badge in documentation.
 - **Documentation:** All docs, contributing, security, FAQ, and troubleshooting guides updated for open-source readiness.
+- **Deployment Summary:** Added comprehensive deployment summary with status checks and next steps guidance.
 
 ## Migration Guide
 - Remove any old Docker Compose (pip-based) installations from Pis before upgrading.
@@ -28,8 +33,9 @@ This release marks a major milestone for Pi-Swarm, making it robust, reproducibl
 3. Use the deployment script as documented in the README.
 
 ## Known Issues
-- SSH key setup may fail if Pis are not accessible or credentials are incorrect.
+- SSH key setup may fail if Pis are not accessible or credentials are incorrect (now handled gracefully with fallback to password auth).
 - Some enterprise features require additional configuration (see docs/ENTERPRISE_FEATURES.md).
+- Service deployment may fail if Pis are not powered on or network connectivity is poor (deployment script now provides clear feedback).
 
 ## Contributors
 - See CONTRIBUTORS.md for a full list of contributors.
