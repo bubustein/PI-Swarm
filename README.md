@@ -10,3 +10,6 @@ For full documentation, usage instructions, and project details, see [docs/READM
 
 ## Directory Structure
 See [docs/DIRECTORY_STRUCTURE.md](docs/DIRECTORY_STRUCTURE.md) for a full breakdown.
+
+---
+_Last repo sync: 2025-05-31 23:00 UTC_
