@@ -1,71 +1,35 @@
 # Changelog
 
 ## [v2.0.0] - 2025-05-31
-### Major Deployment Fixes & Open Source Ready
-This version represents a complete deployment overhaul making Pi-Swarm production-ready and open-source deployment-ready.
 
-#### 🚀 **Critical Deployment Fixes**
-- **Fixed configuration file path resolution** - Updated from `SCRIPT_DIR` to `PROJECT_ROOT` for reliable file access
-- **Modernized Docker Compose installation** - Switched to Docker Compose V2 plugin method with V1 fallback compatibility
-- **Enhanced Docker group management** - Added existence checks and non-fatal group addition with proper verification
-- **Eliminated duplicate Docker installations** - Removed conflicting installation calls and streamlined deployment flow
-- **Enhanced service deployment** - Added dual compatibility for both V1 (`docker-compose`) and V2 (`docker compose`) commands
-- **Improved error diagnostics** - Enhanced `scp_file` function with comprehensive error reporting and source file validation
-- **Fixed template path resolution** - Corrected Grafana templates directory path resolution
-- **Made security functions optional** - Added existence checks for undefined security functions
+### Major Changes
+- Complete project restructuring for open-source/public deployment
+- All scripts and functions reorganized into scope-based directories
+- Documentation, CONTRIBUTING, SECURITY, FAQ, TROUBLESHOOTING, and LICENSE updated
+- CI/CD: Added GitHub Actions workflow for tests; CI badge in docs
+- All test scripts restored and made executable; comprehensive test script validates project integrity
 
-#### 🔧 **Core Infrastructure Improvements**
-- **Robust function loading** - `lib/source_functions.sh` now loads all 15 essential functions reliably
-- **Enhanced error handling** - Comprehensive error reporting and graceful failure handling throughout deployment
-- **Path resolution fixes** - All file operations now use consistent `PROJECT_ROOT` base paths
-- **Service stack reliability** - Docker Compose services deploy successfully with proper dependency management
+### Deployment & Functionality
+- Modernized Docker and Docker Compose installation (V2 plugin, fallback to manual)
+- Improved SSH enablement and password handling for non-interactive automation
+- Enhanced error handling and diagnostics for all remote operations
+- File copy logic fixed: all required config files and Grafana templates now copy correctly
+- Service stack deployment now supports both Docker Compose V1 and V2
+- All essential functions loaded and exported; function loader improved
+- Removed duplicate/conflicting Docker installation logic
+- Made undefined/optional functions (security hardening, validation) safe to skip
 
-#### 📁 **Project Structure & Organization**
-- **Scope-based directory organization** - All files reorganized into logical functional directories
-- **Comprehensive documentation** - Added CONTRIBUTING, SECURITY, FAQ, TROUBLESHOOTING guides
-- **Automated testing** - Complete test suite with `comprehensive-test.sh` validation
-- **CI/CD integration** - GitHub Actions workflow for automated testing
+### Testing & Validation
+- Comprehensive test script passes: function loading, lock, network, syntax
+- Automated deployment test script added for CI and local validation
 
-#### 🛠 **New Features & Tools**
-- **Automated deployment testing** - `validate-deployment-fixes.sh` for end-to-end deployment validation
-- **Enhanced configuration management** - Restored and improved `get_config_value` function
-- **SSL automation** - Complete SSL certificate automation with Let's Encrypt integration
-- **Prometheus alerting** - Added comprehensive alerting rules configuration
-- **Service monitoring** - Enhanced service status monitoring and health checks
+### Other Improvements
+- Enhanced error diagnostics in scp_file and remote operations
+- Project is now robust, reproducible, and ready for GitHub open-source release
 
-#### 🧪 **Testing & Validation**
-- **All test scripts restored** - Complete test suite with executable permissions
-- **Deployment flow validation** - Successfully tested through all configuration phases
-- **Function loading verification** - Confirmed all essential functions load correctly
-- **CI badge integration** - GitHub Actions CI status in documentation
+---
 
-#### 📖 **Documentation Updates**
-- **Complete project documentation** - Comprehensive docs in `docs/` directory
-- **Enterprise transformation guide** - Complete enterprise deployment documentation
-- **Security guidelines** - Detailed security configuration and best practices
-- **Contributing guidelines** - Clear contribution process and coding standards
-
-#### 🔐 **Security Enhancements**
-- **SSH key management** - Enhanced SSH secure configuration
-- **SSL certificate automation** - Automated wildcard SSL and Let's Encrypt integration
-- **Security function checks** - Optional security function loading with graceful degradation
-
-### Technical Details
-- **Essential Functions Loaded**: 15 core functions including configure_pi_headless, Docker management, and service deployment
-- **Docker Compose Compatibility**: Supports both V1 (docker-compose) and V2 (docker compose) commands
-- **Error Recovery**: Non-fatal failures with comprehensive error reporting
-- **Path Resolution**: Consistent PROJECT_ROOT-based file operations
-- **Service Stack**: Prometheus, Grafana, Node Exporter with proper template deployment
-
-### Breaking Changes
-- Configuration file paths now resolve from PROJECT_ROOT instead of SCRIPT_DIR
-- Docker installation method changed from pip to native Docker Compose V2 plugin
-- Some security functions are now optional and won't halt deployment if missing
-
-### Migration Guide
-- Existing deployments should work without changes
-- New deployments benefit from improved reliability and error handling
-- All file paths are now relative to project root for consistency
+See `RELEASE_NOTES_v2.0.0.md` for a detailed migration and upgrade guide.
 
 ## [v1.0.0] - 2025-05-25
 ### Added
