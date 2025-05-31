@@ -1,0 +1,559 @@
+#!/bin/bash
+# Pi-Swarm Management CLI Tool
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+FUNCTIONS_DIR="$PROJECT_ROOT/lib"
+
+# Load functions
+source "$FUNCTIONS_DIR/source_functions.sh"
+
+# Colors for output
+readonly GREEN='\033[0;32m'
+readonly RED='\033[0;31m'
+readonly YELLOW='\033[0;33m'
+readonly BLUE='\033[0;34m'
+readonly PURPLE='\033[0;35m'
+readonly CYAN='\033[0;36m'
+readonly NC='\033[0m'
+
+# Configuration
+MANAGER_IP=""
+SSH_USER=""
+SSH_PASS=""
+PI_IPS=()
+
+load_cluster_config() {
+    if [[ -f "$PROJECT_ROOT/.cluster-config" ]]; then
+        source "$PROJECT_ROOT/.cluster-config"
+    else
+        echo -e "${RED}No cluster configuration found. Please run the main setup first.${NC}"
+        exit 1
+    fi
+}
+
+show_banner() {
+    echo -e "${BLUE}"
+    cat << 'EOF'
+╔══════════════════════════════════════════════════════════════╗
+║                    Pi-Swarm Management CLI                   ║
+║                  Professional Cluster Manager               ║
+╚══════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}"
+}
+
+show_help() {
+    echo -e "${CYAN}Pi-Swarm Management Commands:${NC}"
+    echo ""
+    echo -e "${GREEN}Cluster Operations:${NC}"
+    echo "  status          - Show cluster status and health"
+    echo "  nodes           - List all cluster nodes"
+    echo "  services        - List all running services"
+    echo "  logs <service>  - Show logs for a specific service"
+    echo "  restart <svc>   - Restart a service"
+    echo "  scale <svc> <n> - Scale service to N replicas"
+    echo ""
+    echo -e "${GREEN}High Availability:${NC}"
+    echo "  setup-ha        - Setup multi-manager HA cluster"
+    echo "  verify-ha       - Verify HA cluster health"
+    echo "  failover        - Initiate manual failover"
+    echo ""
+    echo -e "${GREEN}Service Templates:${NC}"
+    echo "  list-templates  - List available service templates"
+    echo "  deploy-template - Deploy a service template"
+    echo "  templates       - Browse template catalog"
+    echo ""
+    echo -e "${GREEN}SSL & Security:${NC}"
+    echo "  ssl-setup       - Setup SSL certificates"
+    echo "  ssl-renew       - Renew SSL certificates"
+    echo "  ssl-status      - Check SSL certificate status"
+    echo "  security        - Run security audit"
+    echo ""
+    echo -e "${GREEN}Alerts & Notifications:${NC}"
+    echo "  setup-slack     - Configure Slack notifications"
+    echo "  setup-email     - Configure email alerts"
+    echo "  test-alerts     - Test all notification systems"
+    echo ""
+    echo -e "${GREEN}Monitoring & Performance:${NC}"
+    echo "  monitor         - Show real-time cluster monitoring"
+    echo "  performance     - Generate performance report"
+    echo "  health          - Run comprehensive health check"
+    echo "  metrics         - Display key metrics"
+    echo ""
+    echo -e "${GREEN}Backup & Maintenance:${NC}"
+    echo "  backup          - Create cluster backup"
+    echo "  restore         - Restore from backup"
+    echo "  update          - Update all services"
+    echo "  cleanup         - Clean up unused containers/images"
+    echo ""
+    echo -e "${GREEN}Web Interfaces:${NC}"
+    echo "  portainer       - Open Portainer web interface"
+    echo "  grafana         - Open Grafana dashboard"
+    echo "  prometheus      - Open Prometheus interface"
+    echo "  dashboard       - Open local web dashboard"
+    echo "  ssl-dashboard   - Open SSL management dashboard"
+    echo ""
+    echo -e "${GREEN}Utilities:${NC}"
+    echo "  ssh <node>      - SSH into a specific node"
+    echo "  exec <cmd>      - Execute command on all nodes"
+    echo "  config          - Show cluster configuration"
+    echo "  help            - Show this help message"
+    echo ""
+}
+
+cmd_status() {
+    echo -e "${BLUE}🔍 Cluster Status Overview${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    # Basic cluster info
+    echo -e "${CYAN}Manager Node:${NC} $MANAGER_IP"
+    echo -e "${CYAN}Total Nodes:${NC} ${#PI_IPS[@]}"
+    echo ""
+    
+    # Node status
+    echo -e "${GREEN}📊 Node Status:${NC}"
+    ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "
+        docker node ls --format 'table {{.Hostname}}\t{{.Status}}\t{{.Availability}}\t{{.ManagerStatus}}' | while IFS=$'\t' read hostname status availability manager; do
+            if [[ \"\$hostname\" == \"HOSTNAME\" ]]; then
+                printf '   %-15s %-10s %-12s %s\n' \"\$hostname\" \"\$status\" \"\$availability\" \"\$manager\"
+            else
+                if [[ \"\$status\" == \"Ready\" && \"\$availability\" == \"Active\" ]]; then
+                    printf '   ✅ %-13s %-10s %-12s %s\n' \"\$hostname\" \"\$status\" \"\$availability\" \"\$manager\"
+                else
+                    printf '   ❌ %-13s %-10s %-12s %s\n' \"\$hostname\" \"\$status\" \"\$availability\" \"\$manager\"
+                fi
+            fi
+        done
+    "
+    echo ""
+    
+    # Service status
+    echo -e "${GREEN}🚀 Service Status:${NC}"
+    ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "
+        docker service ls --format 'table {{.Name}}\t{{.Replicas}}\t{{.Image}}' | while IFS=$'\t' read name replicas image; do
+            if [[ \"\$name\" == \"NAME\" ]]; then
+                printf '   %-20s %-15s %s\n' \"\$name\" \"\$replicas\" \"\$image\"
+            else
+                if [[ \"\$replicas\" =~ ^[0-9]+/[0-9]+$ ]]; then
+                    current=\$(echo \"\$replicas\" | cut -d'/' -f1)
+                    desired=\$(echo \"\$replicas\" | cut -d'/' -f2)
+                    if [[ \"\$current\" == \"\$desired\" ]]; then
+                        printf '   ✅ %-18s %-15s %s\n' \"\$name\" \"\$replicas\" \"\$image\"
+                    else
+                        printf '   ⚠️  %-18s %-15s %s\n' \"\$name\" \"\$replicas\" \"\$image\"
+                    fi
+                else
+                    printf '   ❓ %-18s %-15s %s\n' \"\$name\" \"\$replicas\" \"\$image\"
+                fi
+            fi
+        done
+    "
+}
+
+cmd_nodes() {
+    echo -e "${BLUE}🖥️  Cluster Nodes Details${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    for ip in "${PI_IPS[@]}"; do
+        echo -e "${CYAN}Node: $ip${NC}"
+        
+        node_info=$(ssh_exec "$ip" "$SSH_USER" "$SSH_PASS" "
+            echo 'Hostname: '$(hostname)
+            echo 'Uptime: '$(uptime -p)
+            echo 'Load: '$(uptime | awk -F'load average:' '{print \$2}' | xargs)
+            echo 'Memory: '$(free -h | awk 'NR==2{printf \"%s/%s (%.1f%%)\", \$3, \$2, \$3*100/\$2}')
+            echo 'Disk: '$(df -h / | awk 'NR==2{printf \"%s/%s (%s)\", \$3, \$2, \$5}')
+            echo 'Temperature: '$(vcgencmd measure_temp 2>/dev/null | cut -d'=' -f2 || echo 'N/A')
+            echo 'Docker: '$(docker --version | cut -d' ' -f3 | cut -d',' -f1)
+        " 2>/dev/null)
+        
+        echo "$node_info" | sed 's/^/   /'
+        echo ""
+    done
+}
+
+cmd_services() {
+    echo -e "${BLUE}🚀 Service Management${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "
+        echo 'Service Details:'
+        docker service ls --format 'table {{.Name}}\t{{.Mode}}\t{{.Replicas}}\t{{.Image}}\t{{.Ports}}' | while read line; do
+            echo '   '\$line
+        done
+        echo ''
+        echo 'Running Tasks:'
+        docker service ps --format 'table {{.Name}}\t{{.Node}}\t{{.CurrentState}}\t{{.Error}}' \$(docker service ls -q) | head -20 | while read line; do
+            echo '   '\$line
+        done
+    "
+}
+
+cmd_logs() {
+    local service="$1"
+    if [[ -z "$service" ]]; then
+        echo -e "${RED}Usage: $0 logs <service-name>${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}📋 Logs for service: $service${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "
+        docker service logs --tail 50 --follow '$service'
+    "
+}
+
+cmd_performance() {
+    echo -e "${BLUE}📊 Generating Performance Report${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    # Export variables for the function
+    export PI_STATIC_IPS=("${PI_IPS[@]}")
+    export NODES_DEFAULT_USER="$SSH_USER"
+    export NODES_DEFAULT_PASS="$SSH_PASS"
+    
+    monitor_cluster_performance "$MANAGER_IP"
+}
+
+cmd_security() {
+    echo -e "${BLUE}🔒 Security Audit${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    # Export variables for the function
+    export PI_STATIC_IPS=("${PI_IPS[@]}")
+    export NODES_DEFAULT_USER="$SSH_USER"
+    export NODES_DEFAULT_PASS="$SSH_PASS"
+    
+    create_security_audit
+}
+
+cmd_monitor() {
+    echo -e "${BLUE}📈 Real-time Cluster Monitor${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
+    echo ""
+    
+    while true; do
+        clear
+        echo -e "${CYAN}$(date)${NC}"
+        echo ""
+        
+        # Quick cluster overview
+        for ip in "${PI_IPS[@]}"; do
+            printf "%-15s " "$ip"
+            
+            stats=$(ssh_exec "$ip" "$SSH_USER" "$SSH_PASS" "
+                cpu=\$(top -bn1 | grep 'Cpu(s)' | awk '{print \$2}' | cut -d'%' -f1)
+                mem=\$(free | awk 'NR==2{printf \"%.1f\", \$3*100/\$2}')
+                temp=\$(vcgencmd measure_temp 2>/dev/null | cut -d'=' -f2 | cut -d'.' -f1 || echo '0')
+                echo \"CPU: \${cpu}% | MEM: \${mem}% | TEMP: \${temp}°C\"
+            " 2>/dev/null)
+            
+            echo "$stats"
+        done
+        
+        echo ""
+        echo -e "${GREEN}Services:${NC}"
+        ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "
+            docker service ls --format '{{.Name}}: {{.Replicas}}' | while read line; do
+                echo '   '\$line
+            done
+        " 2>/dev/null
+        
+        sleep 5
+    done
+}
+
+cmd_backup() {
+    echo -e "${BLUE}💾 Creating Cluster Backup${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    # Export variables for the function
+    export PI_STATIC_IPS=("${PI_IPS[@]}")
+    export NODES_DEFAULT_USER="$SSH_USER"
+    export NODES_DEFAULT_PASS="$SSH_PASS"
+    
+    backup_cluster_config "$MANAGER_IP"
+}
+
+cmd_web_interface() {
+    local service="$1"
+    local url=""
+    
+    case "$service" in
+        "portainer")
+            url="https://$MANAGER_IP:9443"
+            ;;
+        "grafana")
+            url="http://$MANAGER_IP:3000"
+            ;;
+        "prometheus")
+            url="http://$MANAGER_IP:9090"
+            ;;
+        "dashboard")
+            url="file://$(pwd)/pi-swarm-dashboard.html"
+            ;;
+        *)
+            echo -e "${RED}Unknown service: $service${NC}"
+            return 1
+            ;;
+    esac
+    
+    echo -e "${GREEN}Opening $service interface: $url${NC}"
+    
+    # Try to open with various browsers
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$url"
+    elif command -v firefox >/dev/null 2>&1; then
+        firefox "$url" &
+    elif command -v chromium-browser >/dev/null 2>&1; then
+        chromium-browser "$url" &
+    else
+        echo -e "${YELLOW}Please open manually: $url${NC}"
+    fi
+}
+
+cmd_ssh() {
+    local node="$1"
+    if [[ -z "$node" ]]; then
+        echo -e "${RED}Usage: $0 ssh <node-ip-or-hostname>${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}Connecting to $node...${NC}"
+    ssh "$SSH_USER@$node"
+}
+
+cmd_exec() {
+    local command="$*"
+    if [[ -z "$command" ]]; then
+        echo -e "${RED}Usage: $0 exec <command>${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Executing on all nodes: $command${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    for ip in "${PI_IPS[@]}"; do
+        echo -e "${CYAN}[$ip]${NC}"
+        ssh_exec "$ip" "$SSH_USER" "$SSH_PASS" "$command" || echo -e "${RED}Failed on $ip${NC}"
+        echo ""
+    done
+}
+
+cmd_config() {
+    echo -e "${BLUE}🔧 Cluster Configuration${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    echo -e "${CYAN}Manager IP:${NC} $MANAGER_IP"
+    echo -e "${CYAN}SSH User:${NC} $SSH_USER"
+    echo -e "${CYAN}Node IPs:${NC} ${PI_IPS[*]}"
+    echo -e "${CYAN}Script Directory:${NC} $SCRIPT_DIR"
+    echo ""
+    
+    echo -e "${GREEN}Available Services:${NC}"
+    echo "   • Portainer: https://$MANAGER_IP:9443"
+    echo "   • Grafana: http://$MANAGER_IP:3000"
+    echo "   • Prometheus: http://$MANAGER_IP:9090"
+    echo "   • Traefik: http://$MANAGER_IP:8081"
+}
+
+# Enhanced commands for new features
+cmd_setup_ha() {
+    echo -e "${BLUE}🏗️  Setting up High Availability${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    read -p "Enter manager IPs (comma-separated): " manager_ips
+    read -p "Enter worker IPs (comma-separated): " worker_ips
+    
+    setup_high_availability "$manager_ips" "$worker_ips" "$MANAGER_IP"
+}
+
+cmd_list_templates() {
+    echo -e "${BLUE}📋 Available Service Templates${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    list_service_templates "$MANAGER_IP"
+}
+
+cmd_deploy_template() {
+    local template_name="$1"
+    local stack_name="$2"
+    
+    if [[ -z "$template_name" || -z "$stack_name" ]]; then
+        echo -e "${RED}Usage: $0 deploy-template <template-name> <stack-name>${NC}"
+        return 1
+    fi
+    
+    deploy_service_template "$template_name" "$stack_name" "$MANAGER_IP"
+}
+
+cmd_ssl_setup() {
+    echo -e "${BLUE}🔒 SSL Certificate Setup${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    read -p "Enter domain name (or 'self-signed' for self-signed certs): " domain
+    
+    if [[ "$domain" == "self-signed" ]]; then
+        generate_wildcard_ssl "piswarm.local" "$MANAGER_IP"
+    else
+        read -p "Enter email for Let's Encrypt: " email
+        setup_letsencrypt_ssl "$domain" "$email" "$MANAGER_IP"
+    fi
+    
+    setup_ssl_monitoring "$MANAGER_IP"
+    create_ssl_dashboard "$MANAGER_IP"
+}
+
+cmd_ssl_status() {
+    echo -e "${BLUE}🔍 SSL Certificate Status${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "
+        echo 'Checking SSL certificates...'
+        
+        # Check self-signed certificates
+        if [[ -d ~/ssl ]]; then
+            echo 'Self-signed certificates:'
+            for cert in ~/ssl/*.crt; do
+                if [[ -f \"\$cert\" ]]; then
+                    domain=\$(basename \"\$cert\" .crt)
+                    expiry=\$(openssl x509 -enddate -noout -in \"\$cert\" | cut -d= -f2)
+                    echo \"  \$domain: expires \$expiry\"
+                fi
+            done
+        fi
+        
+        # Check Let's Encrypt certificates
+        if [[ -d /etc/letsencrypt/live ]]; then
+            echo 'Let\\'s Encrypt certificates:'
+            for domain_dir in /etc/letsencrypt/live/*; do
+                if [[ -d \"\$domain_dir\" ]]; then
+                    domain=\$(basename \"\$domain_dir\")
+                    cert_file=\"\$domain_dir/cert.pem\"
+                    if [[ -f \"\$cert_file\" ]]; then
+                        expiry=\$(openssl x509 -enddate -noout -in \"\$cert_file\" | cut -d= -f2)
+                        echo \"  \$domain: expires \$expiry\"
+                    fi
+                fi
+            done
+        fi
+    "
+}
+
+cmd_setup_slack() {
+    echo -e "${BLUE}💬 Setting up Slack Notifications${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    read -p "Enter Slack webhook URL: " webhook_url
+    read -p "Enter Slack channel (e.g., #piswarm-alerts): " channel
+    
+    setup_slack_alerts "$webhook_url" "$channel" "$MANAGER_IP"
+    
+    echo -e "${GREEN}✅ Slack integration configured!${NC}"
+    echo "Testing notification..."
+    ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "slack-notify deployment 'Slack integration test'"
+}
+
+cmd_setup_email() {
+    echo -e "${BLUE}📧 Setting up Email Notifications${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    read -p "SMTP server: " smtp_server
+    read -p "SMTP port: " smtp_port
+    read -p "From email: " email_from
+    read -p "To email: " email_to
+    read -p "SMTP username: " smtp_user
+    read -s -p "SMTP password: " smtp_pass
+    echo ""
+    
+    setup_email_alerts "$smtp_server" "$smtp_port" "$email_from" "$email_to" "$smtp_user" "$smtp_pass" "$MANAGER_IP"
+    
+    echo -e "${GREEN}✅ Email integration configured!${NC}"
+}
+
+cmd_test_alerts() {
+    echo -e "${BLUE}🧪 Testing Alert Systems${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    test_alert_integrations "$MANAGER_IP"
+}
+
+cmd_templates() {
+    echo -e "${BLUE}📚 Service Template Catalog${NC}"
+    echo "════════════════════════════════════════════════════════════════"
+    
+    if ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "test -f ~/templates/template-index.md"; then
+        ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "cat ~/templates/template-index.md"
+    else
+        echo "Initializing templates..."
+        init_service_templates "$MANAGER_IP"
+        ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "cat ~/templates/template-index.md"
+    fi
+}
+
+cmd_ssl_dashboard() {
+    local url="file://$SCRIPT_DIR/ssl-dashboard.html"
+    echo -e "${GREEN}Opening SSL dashboard: $url${NC}"
+    
+    # Generate SSL dashboard if it doesn't exist
+    if [[ ! -f "$SCRIPT_DIR/ssl-dashboard.html" ]]; then
+        create_ssl_dashboard "$MANAGER_IP"
+        scp "$SSH_USER@$MANAGER_IP:~/web/ssl-dashboard.html" "$SCRIPT_DIR/"
+    fi
+    
+    cmd_web_interface "ssl-dashboard"
+}
+
+# Main command dispatcher
+main() {
+    show_banner
+    load_cluster_config
+    
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        "status") cmd_status ;;
+        "nodes") cmd_nodes ;;
+        "services") cmd_services ;;
+        "logs") cmd_logs "$@" ;;
+        "monitor") cmd_monitor ;;
+        "performance") cmd_performance ;;
+        "security") cmd_security ;;
+        "backup") cmd_backup ;;
+        "setup-ha") cmd_setup_ha ;;
+        "verify-ha") verify_ha_cluster "$MANAGER_IP" ;;
+        "list-templates") cmd_list_templates ;;
+        "deploy-template") cmd_deploy_template "$@" ;;
+        "templates") cmd_templates ;;
+        "ssl-setup") cmd_ssl_setup ;;
+        "ssl-renew") ssh_exec "$MANAGER_IP" "$SSH_USER" "$SSH_PASS" "/etc/cron.weekly/ssl-renewal" ;;
+        "ssl-status") cmd_ssl_status ;;
+        "setup-slack") cmd_setup_slack ;;
+        "setup-email") cmd_setup_email ;;
+        "test-alerts") cmd_test_alerts ;;
+        "ssl-dashboard") cmd_ssl_dashboard ;;
+        "portainer"|"grafana"|"prometheus"|"dashboard") cmd_web_interface "$command" ;;
+        "ssh") cmd_ssh "$@" ;;
+        "exec") cmd_exec "$@" ;;
+        "config") cmd_config ;;
+        "help"|"--help"|"-h") show_help ;;
+        *)
+            echo -e "${RED}Unknown command: $command${NC}"
+            echo "Run '$0 help' for available commands."
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

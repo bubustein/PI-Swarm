@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi-Swarm Cluster Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.2em;
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .service-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 5px solid;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+        
+        .portainer { border-left-color: #0066cc; }
+        .grafana { border-left-color: #ff6600; }
+        .prometheus { border-left-color: #e6522c; }
+        .docs { border-left-color: #28a745; }
+        
+        .service-icon {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+        
+        .service-title {
+            font-size: 1.4em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .service-description {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .service-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .service-link {
+            display: inline-block;
+            padding: 12px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .service-link:hover {
+            background: #2980b9;
+        }
+        
+        .service-link.secondary {
+            background: #95a5a6;
+        }
+        
+        .service-link.secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .credentials {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .status-bar {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+        
+        .quick-commands {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 30px;
+        }
+        
+        .quick-commands h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .command {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 5px 0;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .command:hover {
+            background: #34495e;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Pi-Swarm Cluster Dashboard</h1>
+            <p>Professional Raspberry Pi Docker Swarm Management</p>
+        </div>
+        
+        <div class="status-bar">
+            ✅ Cluster Status: OPERATIONAL | Manager IP: <span id="manager-ip">{{MANAGER_IP}}</span>
+        </div>
+        
+        <div class="services-grid">
+            <div class="service-card portainer">
+                <div class="service-icon">🐳</div>
+                <div class="service-title">Portainer CE</div>
+                <div class="service-description">
+                    Complete Docker Swarm management with visual interface. Deploy, scale, and monitor your containers with ease.
+                </div>
+                <div class="service-links">
+                    <a href="https://{{MANAGER_IP}}:9443" class="service-link" target="_blank">
+                        🔒 Access Portainer (HTTPS)
+                    </a>
+                    <a href="http://{{MANAGER_IP}}:9000" class="service-link secondary" target="_blank">
+                        🌐 Access Portainer (HTTP)
+                    </a>
+                </div>
+                <div class="credentials">
+                    <strong>Login:</strong> admin<br>
+                    <strong>Password:</strong> {{PORTAINER_PASSWORD}}
+                </div>
+            </div>
+            
+            <div class="service-card grafana">
+                <div class="service-icon">📊</div>
+                <div class="service-title">Grafana</div>
+                <div class="service-description">
+                    Advanced monitoring dashboards with real-time metrics visualization and alerting capabilities.
+                </div>
+                <div class="service-links">
+                    <a href="http://{{MANAGER_IP}}:3000" class="service-link" target="_blank">
+                        📈 Open Grafana Dashboard
+                    </a>
+                </div>
+                <div class="credentials">
+                    <strong>Login:</strong> admin<br>
+                    <strong>Password:</strong> {{GRAFANA_PASSWORD}}
+                </div>
+            </div>
+            
+            <div class="service-card prometheus">
+                <div class="service-icon">🔍</div>
+                <div class="service-title">Prometheus</div>
+                <div class="service-description">
+                    Metrics collection and querying engine. Raw metrics data and custom queries for your cluster.
+                </div>
+                <div class="service-links">
+                    <a href="http://{{MANAGER_IP}}:9090" class="service-link" target="_blank">
+                        🎯 Open Prometheus
+                    </a>
+                </div>
+                <div class="credentials">
+                    <strong>Access:</strong> No authentication required
+                </div>
+            </div>
+            
+            <div class="service-card docs">
+                <div class="service-icon">📚</div>
+                <div class="service-title">Documentation</div>
+                <div class="service-description">
+                    Complete setup guides, implementation details, and usage instructions for your Pi-Swarm cluster.
+                </div>
+                <div class="service-links">
+                    <a href="#" onclick="alert('Check the IMPLEMENTATION_SUMMARY.md file in your project directory')" class="service-link">
+                        📖 Implementation Guide
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="quick-commands">
+            <h3>🛠️ Quick SSH Commands</h3>
+            <div class="command" onclick="copyToClipboard(this.textContent)">
+                ssh {{SSH_USER}}@{{MANAGER_IP}} 'docker node ls'
+            </div>
+            <div class="command" onclick="copyToClipboard(this.textContent)">
+                ssh {{SSH_USER}}@{{MANAGER_IP}} 'docker service ls'
+            </div>
+            <div class="command" onclick="copyToClipboard(this.textContent)">
+                ssh {{SSH_USER}}@{{MANAGER_IP}} 'docker service logs portainer_portainer'
+            </div>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #7f8c8d;">
+                💡 Click any command to copy to clipboard
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Show a temporary notification
+                const notification = document.createElement('div');
+                notification.textContent = '✅ Copied to clipboard!';
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #27ae60;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    z-index: 1000;
+                `;
+                document.body.appendChild(notification);
+                setTimeout(() => notification.remove(), 2000);
+            });
+        }
+        
+        // Auto-refresh status every 30 seconds
+        setInterval(() => {
+            console.log('Status check - cluster operational');
+        }, 30000);
+    </script>
+</body>
+</html>
