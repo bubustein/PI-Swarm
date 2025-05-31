@@ -15,7 +15,7 @@ exec 1> >(tee -a "$LOG_FILE")
 exec 2> >(tee -a "$LOG_FILE" >&2)
 
 # ---- Dependency and Environment Checks ----
-REQUIRED_TOOLS=(sshpass ssh nmap awk sed grep tee curl docker docker-compose lsb_release ip sudo python3 yq)
+REQUIRED_TOOLS=(sshpass ssh nmap awk sed grep tee curl docker lsb_release ip sudo python3 yq)
 PYTHON_MIN_VERSION=3
 
 missing_tools=()
@@ -52,7 +52,7 @@ if (( ${#missing_tools[@]} > 0 )); then
     for t in "${missing_tools[@]}"; do
         case "$t" in
             docker) curl -fsSL https://get.docker.com | $SUDO sh ;;
-            docker-compose|python3) APT_TOOLS+=("$t") ;;
+            docker|python3) APT_TOOLS+=("$t") ;;
             *) APT_TOOLS+=("$t") ;;
         esac
     done
@@ -105,7 +105,10 @@ trap 'log ERROR "Line $LINENO: $BASH_COMMAND"' ERR
 # ---- Pi Discovery ----
 discover_pis
 
-# Validate
+# Split PI_IPS string into an array
+read -ra PI_IPS <<< "$PI_IPS"
+
+# Validate each IP individually
 for ip in "${PI_IPS[@]}"; do
     validate_input "$ip" "ip" || { log ERROR "Invalid IP: $ip"; exit 1; }
 done
@@ -125,6 +128,9 @@ PI_PASS=$(get_config_value ".nodes.default_pass" "password" "" "true")
     read -srp "Enter SSH password for $PI_USER: " PI_PASS && echo
     [[ -n "$PI_PASS" ]] && break || log ERROR "Password cannot be empty."
 done
+
+# Sanitize password to remove whitespace/newlines
+PI_PASS="$(echo "$PI_PASS" | tr -d '\r' | tr -d '\n' | xargs)"
 
 export NODES_DEFAULT_USER="$PI_USER"
 export NODES_DEFAULT_PASS="$PI_PASS"
@@ -253,13 +259,22 @@ for PI_IP in "${PI_STATIC_IPS[@]}"; do
         setup_ssh_keys "$PI_IP" "$SSH_USER" "$SSH_PASS" || { log ERROR "SSH key setup failed for $PI_IP"; continue; }
     fi
 
+    # Configure Pi and install required software including Docker
     configure_pi_headless "$PI_IP" "$SSH_USER" "$SSH_PASS" || { log ERROR "Pi configuration failed for $PI_IP"; continue; }
-    install_docker "$PI_IP" "$SSH_USER" "$SSH_PASS" || { log ERROR "Docker installation failed for $PI_IP"; continue; }
     
-    # Apply security hardening
-    setup_security_hardening "$PI_IP" "$SSH_USER" "$SSH_PASS" || log WARN "Security hardening failed for $PI_IP"
+    # Apply security hardening (if function exists)
+    if command -v setup_security_hardening >/dev/null 2>&1; then
+        setup_security_hardening "$PI_IP" "$SSH_USER" "$SSH_PASS" || log WARN "Security hardening failed for $PI_IP"
+    else
+        log INFO "Security hardening function not available (skipping)"
+    fi
     
-    validate_device_config "$PI_IP" "$SSH_USER" "$SSH_PASS" || { log ERROR "Device validation failed for $PI_IP"; continue; }
+    # Validate device configuration (if function exists)
+    if command -v validate_device_config >/dev/null 2>&1; then
+        validate_device_config "$PI_IP" "$SSH_USER" "$SSH_PASS" || { log ERROR "Device validation failed for $PI_IP"; continue; }
+    else
+        log INFO "Device validation function not available (skipping)"
+    fi
 
     log INFO "✅ Configured: $PI_IP"
 done
@@ -269,7 +284,7 @@ if [[ ${#PI_STATIC_IPS[@]} -gt 0 ]]; then
     init_swarm || { log ERROR "Swarm init failed"; exit 1; }
     
     # Setup SSL certificates (enhanced with Let's Encrypt support)
-    setup_ssl_certificates "${PI_STATIC_IPS[0]}" || log WARN "SSL setup failed"
+    setup_ssl_certificates "${PI_STATIC_IPS[0]}" "$PI_USER" "$PI_PASS" || log WARN "SSL setup failed"
     
     # Initialize service templates for easy deployments
     if command -v init_service_templates >/dev/null 2>&1; then

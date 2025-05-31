@@ -4,27 +4,36 @@ deploy_services() {
     log INFO "Deploying complete service stack (Monitoring + Portainer)..."
     
     # Load service status functions
-    source "$FUNCTIONS_DIR/service_status.sh"
+    source "$FUNCTIONS_DIR/monitoring/service_status.sh"
     
     # Set environment variables for the deployment
     local portainer_password="${PORTAINER_PASSWORD:-piswarm123}"
     local grafana_password="${GRAFANA_PASSWORD:-admin}"
     
-    # Create Portainer admin password file and deploy services
-    ssh_exec "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" "
+    # Create Portainer admin password file and deploy services, capturing output
+    # Use ssh_exec for stack deployment, capturing and printing output
+    stack_output=$(ssh_exec "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" "
         cd ~/PISworm || exit 1
-        
-        # Create admin password hash for Portainer
-        echo '$portainer_password' | docker run --rm -i portainer/helper-reset-password > admin_password 2>/dev/null || echo 'Fallback password setup'
-        
-        # Load environment variables from .env file
-        source .env
-        
-        # Deploy the complete stack
-        docker-compose -f docker-compose.monitoring.yml up -d
-    "
+        echo '[REMOTE] Creating Portainer admin password hash...'
+        echo '$portainer_password' | docker run --rm -i portainer/helper-reset-password > admin_password 2>&1
+        echo '[REMOTE] Running docker compose up (trying V2 first, fallback to V1)...'
+        if docker compose version >/dev/null 2>&1; then
+            docker compose -f docker-compose.monitoring.yml up -d 2>&1
+        elif docker-compose --version >/dev/null 2>&1; then
+            docker-compose -f docker-compose.monitoring.yml up -d 2>&1
+        else
+            echo '[REMOTE ERROR] Neither docker compose nor docker-compose command found'
+            exit 1
+        fi
+    ")
+    status=$?
+    echo "$stack_output"
+    if [[ $status -ne 0 ]]; then
+        log ERROR "Service stack deployment failed. See above for remote error output."
+        return 1
+    fi
     
-    if [[ $? -eq 0 ]]; then
+    if [[ $status -eq 0 ]]; then
         log INFO "Service stack deployed successfully!"
         
         # Wait for services to start

@@ -79,17 +79,28 @@ scp_file() {
     local user="$4"
     local pass="$5"
     
+    # Check if source file exists
+    if [[ ! -f "$src" ]]; then
+        echo "ERROR: Source file '$src' does not exist" >&2
+        return 1
+    fi
+    
     # Try key-based auth first (only if keys should exist)
-    if [[ -f ~/.ssh/id_rsa ]] && timeout 5 scp "${SSH_OPTIONS[@]}" -o PasswordAuthentication=no "$src" "$user@$host:$dest" 2>/dev/null; then
-        return 0
+    if [[ -f ~/.ssh/id_rsa ]]; then
+        if timeout 5 scp "${SSH_OPTIONS[@]}" -o PasswordAuthentication=no "$src" "$user@$host:$dest" 2>/dev/null; then
+            return 0
+        fi
     fi
     
-    # Use password auth with sshpass
-    if sshpass -p "$pass" scp -o StrictHostKeyChecking=accept-new -o PasswordAuthentication=yes "$src" "$user@$host:$dest" 2>/dev/null; then
+    # Use password auth with sshpass, capture errors
+    local scp_error
+    scp_error=$(sshpass -p "$pass" scp -o StrictHostKeyChecking=accept-new -o PasswordAuthentication=yes "$src" "$user@$host:$dest" 2>&1)
+    if [[ $? -eq 0 ]]; then
         return 0
+    else
+        echo "ERROR: SCP failed for $src -> $user@$host:$dest - $scp_error" >&2
+        return 1
     fi
-    
-    return 1
 }
 
 # Secure file download (from remote to local)

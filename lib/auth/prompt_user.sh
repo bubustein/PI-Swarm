@@ -33,4 +33,29 @@ prompt_user() {
     fi
 }
 
+# validate_input: Validate user input for various types
+validate_input() {
+    local value="$1"
+    local type="$2"
+    case "$type" in
+        ip)
+            [[ "$value" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] &&
+            IFS='.' read -r o1 o2 o3 o4 <<< "$value" &&
+            (( o1 >= 0 && o1 <= 255 && o2 >= 0 && o2 <= 255 && o3 >= 0 && o3 <= 255 && o4 >= 0 && o4 <= 255 ))
+            ;;
+        username)
+            [[ -n "$value" && "$value" =~ ^[a-zA-Z0-9_-]+$ ]]
+            ;;
+        port)
+            [[ "$value" =~ ^[0-9]+$ && "$value" -gt 0 && "$value" -lt 65536 ]]
+            ;;
+        password)
+            [[ -n "$value" && "${#value}" -ge 6 ]]
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 export -f prompt_user

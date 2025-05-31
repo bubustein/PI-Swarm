@@ -1,0 +1,20 @@
+name: Pi-Swarm CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up bash and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass nmap docker.io yq
+      - name: Run comprehensive test
+        run: bash scripts/testing/comprehensive-test.sh

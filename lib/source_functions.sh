@@ -27,16 +27,20 @@ source_functions() {
     set +e  # Disable exit on error during sourcing
     declare -a essential_functions=(
         "config/validate_environment.sh"
+        "auth/prompt_user.sh"  # Ensure validate_input is always loaded
         "acquire_lock.sh"
         "release_lock.sh"
         "networking/network_utilities.sh"
         "networking/discover_pis.sh"
         "networking/validate_network_config.sh"
-        "deployment/install_docker.sh"
         "deployment/setup_pis.sh"
         "deployment/init_swarm.sh"
         "deployment/deploy_services.sh"
         "security/ssl_automation.sh"
+        "config/get_config_value.sh" # Add get_config_value to essential functions
+        "auth/ssh_secure.sh" # Add ssh_exec and setup_ssh_keys to essential functions
+        "monitoring/service_status.sh" # Add service_status.sh to essential functions for deploy_services
+        "deployment/configure_pi_headless.sh"
     )
 
     for func in "${essential_functions[@]}"; do
