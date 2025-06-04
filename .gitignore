@@ -20,7 +20,7 @@ id_rsa*
 __pycache__/
 
 # Archives
-PISworm_extracted/
+piswarm_extracted/
 *.zip
 
 # OS generated files

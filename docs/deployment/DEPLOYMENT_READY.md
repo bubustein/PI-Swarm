@@ -58,7 +58,7 @@ sudo apt install -y sshpass nmap docker.io yq
 
 ### **Step 2: Configure Pi-Swarm**
 ```bash
-cd /home/luser/Downloads/PI-Swarm
+cd /path/to/PI-Swarm
 
 # Edit configuration file
 nano config.yml

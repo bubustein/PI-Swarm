@@ -50,7 +50,7 @@ sudo apt install -y sshpass nmap docker.io yq
 ### **Step 2: Quick Deploy (Recommended)**
 ```bash
 # 1. Navigate to Pi-Swarm directory
-cd /home/luser/Downloads/PI-Swarm
+cd /path/to/PI-Swarm
 
 # 2. Run enterprise deployment
 sudo ./swarm-cluster.sh

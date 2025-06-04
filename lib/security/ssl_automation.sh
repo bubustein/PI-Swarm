@@ -50,6 +50,32 @@ setup_letsencrypt_ssl() {
     log INFO "Let's Encrypt certificate deployed to $manager_ip:/etc/ssl/piswarm/"
 }
 
+# setup_ssl_monitoring: Install simple certificate expiry check and cron job
+# Usage: setup_ssl_monitoring <manager_ip> [ssh_user] [ssh_pass]
+setup_ssl_monitoring() {
+    local manager_ip="$1"
+    local ssh_user="${2:-$NODES_DEFAULT_USER}"
+    local ssh_pass="${3:-$NODES_DEFAULT_PASS}"
+
+    log INFO "Configuring SSL monitoring on $manager_ip"
+    ssh_exec "$manager_ip" "$ssh_user" "$ssh_pass" "cat <<'EOF' | sudo tee /usr/local/bin/check-ssl-expiry >/dev/null
+#!/bin/bash
+for cert in /etc/ssl/piswarm/*.crt; do
+    [ -f \"$cert\" ] || continue
+    end=\$(openssl x509 -enddate -noout -in \"$cert\" | cut -d= -f2)
+    exp=\$(date -d \"$end\" +%s)
+    now=\$(date +%s)
+    days=\$(( (exp - now) / 86400 ))
+    if (( days <= 30 )); then
+        echo \"SSL certificate $cert expires in \$days days\"
+    fi
+done
+EOF
+sudo chmod +x /usr/local/bin/check-ssl-expiry
+echo '0 6 * * * root /usr/local/bin/check-ssl-expiry' | sudo tee /etc/cron.d/ssl-monitor >/dev/null"
+}
+
 export -f setup_ssl_certificates
 export -f generate_wildcard_ssl
 export -f setup_letsencrypt_ssl
+export -f setup_ssl_monitoring

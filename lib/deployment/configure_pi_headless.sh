@@ -185,10 +185,10 @@ configure_pi_headless() {
         log INFO "Cgroup memory already enabled on $host"
     fi
     
-    # Create PISworm directory for later use
-    log INFO "Creating PISworm directory on $host..."
-    if ! ssh_exec "$host" "$user" "$pass" "mkdir -p ~/PISworm"; then
-        log ERROR "Failed to create PISworm directory on $host"
+    # Create piswarm directory for later use
+    log INFO "Creating piswarm directory on $host..."
+    if ! ssh_exec "$host" "$user" "$pass" "mkdir -p ~/piswarm"; then
+        log ERROR "Failed to create piswarm directory on $host"
         return 1
     fi
     
@@ -196,20 +196,20 @@ configure_pi_headless() {
     log INFO "Copying monitoring configuration to $host..."
     
     # Use scp to copy files - fix paths to use config directory
-    if ! scp_file "$project_root/config/docker-compose.monitoring.yml" "~/PISworm/" "$host" "$user" "$pass"; then
+    if ! scp_file "$project_root/config/docker-compose.monitoring.yml" "~/piswarm/" "$host" "$user" "$pass"; then
         log WARN "Failed to copy docker-compose.monitoring.yml to $host"
     fi
     
-    if ! scp_file "$project_root/config/prometheus.yml" "~/PISworm/" "$host" "$user" "$pass"; then
+    if ! scp_file "$project_root/config/prometheus.yml" "~/piswarm/" "$host" "$user" "$pass"; then
         log WARN "Failed to copy prometheus.yml to $host"
     fi
     
-    if ! scp_file "$project_root/config/prometheus-alerts.yml" "~/PISworm/" "$host" "$user" "$pass"; then
+    if ! scp_file "$project_root/config/prometheus-alerts.yml" "~/piswarm/" "$host" "$user" "$pass"; then
         log WARN "Failed to copy prometheus-alerts.yml to $host"
     fi
     
     # Create environment file for service passwords
-    ssh_exec "$host" "$user" "$pass" "cat > ~/PISworm/.env << 'EOF'
+    ssh_exec "$host" "$user" "$pass" "cat > ~/piswarm/.env << 'EOF'
 # Service Configuration
 PORTAINER_PASSWORD=\${PORTAINER_PASSWORD:-admin}
 GRAFANA_PASSWORD=admin
@@ -222,13 +222,13 @@ EOF"
     
     # Copy grafana templates directory if it exists
     if [[ -d "$project_root/templates/grafana" ]]; then
-        if ! ssh_exec "$host" "$user" "$pass" "mkdir -p ~/PISworm/grafana"; then
+        if ! ssh_exec "$host" "$user" "$pass" "mkdir -p ~/piswarm/grafana"; then
             log WARN "Failed to create grafana directory on $host"
         else
             # Recursively copy all files and subdirectories in grafana templates
             find "$project_root/templates/grafana" -type f | while read -r file; do
                 rel_path="${file#$project_root/templates/grafana/}"
-                remote_dir="~/PISworm/grafana/$(dirname "$rel_path")"
+                remote_dir="~/piswarm/grafana/$(dirname "$rel_path")"
                 ssh_exec "$host" "$user" "$pass" "mkdir -p $remote_dir"
                 scp_file "$file" "$remote_dir/" "$host" "$user" "$pass"
             done
