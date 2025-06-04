@@ -1,4 +1,7 @@
-deploy_services()     # If no password is set in environment, prompt for it
+deploy_services() {
+    local manager_ip="${PI_STATIC_IPS[0]}"
+
+    # If no password is set in environment, prompt for it
     if [[ -z "${PORTAINER_PASSWORD:-}" ]]; then
         echo ""
         echo "🔐 Portainer Admin Password Setup"
@@ -27,14 +30,14 @@ deploy_services()     # If no password is set in environment, prompt for it
             fi
         done
     else
-        local portainer_password="$PORTAINER_PASSWORD"
+        portainer_password="$PORTAINER_PASSWORD"
         # Validate that environment password meets requirements
         if [[ ${#portainer_password} -lt 8 ]]; then
             log WARN "Environment PORTAINER_PASSWORD is less than 8 characters, using default"
             portainer_password="piswarm123"
         fi
-    fi_ip="${PI_STATIC_IPS[0]}"
-    
+    fi
+
     log INFO "Deploying complete service stack (Monitoring + Portainer)..."
     
     # Configure adaptive services based on detected hardware
@@ -49,29 +52,9 @@ deploy_services()     # If no password is set in environment, prompt for it
     
     # Load service status functions
     source "$FUNCTIONS_DIR/monitoring/service_status.sh"
-    
-    # Set environment variables for the deployment
-    if [[ -z "${PORTAINER_PASSWORD:-}" ]]; then
-        echo ""
-        echo "🔐 Portainer Admin Password Setup"
-        echo "================================="
-        echo "Please set a secure password for the Portainer admin account:"
-        echo "(This will be the login password for the web interface)"
-        while true; do
-            read -sp "Enter Portainer admin password: " portainer_password
-            echo ""
-            if [[ -n "$portainer_password" && ${#portainer_password} -ge 8 ]]; then
-                break
-            else
-                echo "❌ Password must be at least 8 characters long. Please try again."
-            fi
-        done
-    else
-        local portainer_password="$PORTAINER_PASSWORD"
-    fi
-    
+
     local grafana_password="${GRAFANA_PASSWORD:-admin}"
-    
+
     # Export cluster information for service deployment
     export_cluster_variables_for_deployment
     
