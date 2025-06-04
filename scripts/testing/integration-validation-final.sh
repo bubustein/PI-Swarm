@@ -4,7 +4,7 @@
 echo "🎯 Pi-Swarm Context-Aware Integration - Final Validation"
 echo "========================================================"
 
-cd /home/luser/Downloads/PI-Swarm
+cd "$(dirname "$0")/../.."
 
 echo ""
 echo "✅ Core Integration Checks:"

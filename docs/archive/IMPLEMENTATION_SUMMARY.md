@@ -103,7 +103,7 @@ Ensure your Raspberry Pi devices have:
 ### Running the System
 1. **Navigate to the directory:**
    ```bash
-   cd /home/luser/Downloads/PI-Swarm
+   cd "$(dirname "$0")/../.."
    ```
 
 2. **Run the main script:**

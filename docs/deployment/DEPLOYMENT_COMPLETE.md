@@ -47,7 +47,7 @@ Portainer provides:
 
 ### **Step 1: Deploy Your Pi Swarm**
 ```bash
-cd /home/luser/Downloads/PI-Swarm
+cd "$(dirname "$0")/../.."
 sudo ./swarm-cluster.sh
 ```
 
