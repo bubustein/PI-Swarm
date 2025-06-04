@@ -31,6 +31,7 @@ source_functions() {
         "acquire_lock.sh"
         "release_lock.sh"
         "networking/network_utilities.sh"
+        "networking/pi_discovery.sh"     # Enhanced Pi discovery with network scanning
         "networking/discover_pis.sh"
         "networking/validate_network_config.sh"
         "deployment/setup_pis.sh"
@@ -41,6 +42,8 @@ source_functions() {
         "config/get_config_value.sh" # Add get_config_value to essential functions
         "auth/ssh_secure.sh" # Add ssh_exec and setup_ssh_keys to essential functions
         "monitoring/service_status.sh" # Add service_status.sh to essential functions for deploy_services
+        "monitoring/alert_integration.sh" # Add alert integration including WhatsApp support
+        "monitoring/llm_integration.sh" # Add LLM-powered alert analysis and automated remediation
         "deployment/configure_pi_headless.sh"
     )
 

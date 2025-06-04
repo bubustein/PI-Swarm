@@ -211,7 +211,7 @@ configure_pi_headless() {
     # Create environment file for service passwords
     ssh_exec "$host" "$user" "$pass" "cat > ~/PISworm/.env << 'EOF'
 # Service Configuration
-PORTAINER_PASSWORD=piswarm123
+PORTAINER_PASSWORD=\${PORTAINER_PASSWORD:-admin}
 GRAFANA_PASSWORD=admin
 PORTAINER_PORT=9443
 PORTAINER_HTTP_PORT=9000

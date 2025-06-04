@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # Test script to validate fixes
-PROJECT_ROOT="/home/luser/Downloads/PI-Swarm"
+# Get script directory and set project root dynamically
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 FUNCTIONS_DIR="$PROJECT_ROOT/lib"
 source "$PROJECT_ROOT/lib/source_functions.sh"
 

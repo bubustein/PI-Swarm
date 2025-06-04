@@ -91,7 +91,7 @@ generate_access_info() {
     echo "# Portainer (Container Management)"
     echo "https://$manager_ip:9443"
     echo "Username: admin"
-    echo "Password: ${PORTAINER_PASSWORD:-piswarm123}"
+    echo "Password: [Set during deployment]"
     echo ""
     echo "# Grafana (Monitoring Dashboard)"  
     echo "http://$manager_ip:3000"

@@ -10,6 +10,15 @@ LOG_FILE="$PROJECT_ROOT/data/logs/piswarm-$(date +%Y%m%d).log"
 BACKUP_DIR="$PROJECT_ROOT/data/backups"
 mkdir -p "$(dirname "$LOG_FILE")"
 
+# --- Ensure essential functions are loaded early ---
+# Always source log.sh and discover_pis.sh directly for reliability
+if [[ -f "$FUNCTIONS_DIR/log.sh" ]]; then
+    source "$FUNCTIONS_DIR/log.sh"
+fi
+if [[ -f "$FUNCTIONS_DIR/networking/discover_pis.sh" ]]; then
+    source "$FUNCTIONS_DIR/networking/discover_pis.sh"
+fi
+
 # Initialize logging
 exec 1> >(tee -a "$LOG_FILE")
 exec 2> >(tee -a "$LOG_FILE" >&2)
@@ -97,7 +106,7 @@ cleanup() {
             done
         fi
     fi
-    release_lock || true
+    release_lock 2>/dev/null || true
 }
 trap cleanup EXIT
 trap 'log ERROR "Line $LINENO: $BASH_COMMAND"' ERR
@@ -116,28 +125,229 @@ done
 log INFO "Pis found: ${PI_IPS[*]}"
 log INFO "Hostnames: ${PI_HOSTNAMES[*]}"
 
-# ---- Credential Setup ----
-PI_USER=$(get_config_value ".nodes.default_user" "username" "" "true")
-[[ -z "$PI_USER" ]] && while true; do
-    read -rp "Enter SSH username: " PI_USER
-    validate_input "$PI_USER" "username" && break || log ERROR "Invalid username."
+# ---- Optional Pre-deployment Validation ----
+echo ""
+echo "🧹 Pre-deployment Validation Available"
+echo "======================================"
+echo "Would you like to run pre-deployment validation and cleanup?"
+echo "This will optimize your Pis for deployment and may improve success rate."
+echo ""
+echo "Validation includes:"
+echo "  • System resource checks"
+echo "  • Docker environment cleanup"
+echo "  • Network connectivity validation"
+echo "  • Performance optimization"
+echo ""
+
+# Helper for non-interactive default
+prompt_or_default() {
+    local prompt="$1"; local var="$2"; local def="$3"; local silent="$4"
+    if [ ! -t 0 ]; then
+        eval "$var=\"$def\""
+    else
+        if [ "$silent" = "true" ]; then
+            read -srp "$prompt" $var && echo
+        else
+            read -p "$prompt" $var
+        fi
+        eval "$var=\"${!var:-$def}\""
+    fi
+}
+
+PRE_VALIDATION=""
+while true; do
+    prompt_or_default "Run pre-deployment validation? (Y/n): " PRE_VALIDATION "Y" "false"
+    PRE_VALIDATION=${PRE_VALIDATION,,}
+    case $PRE_VALIDATION in
+        y|yes)
+            echo "✅ Will run pre-deployment validation"
+            PRE_VALIDATION="true"
+            break
+            ;;
+        n|no)
+            echo "⚠️ Skipping pre-deployment validation"
+            PRE_VALIDATION="false"
+            break
+            ;;
+        *)
+            echo "❌ Please enter Y or N"; PRE_VALIDATION="true" # default
+            ;;
+    esac
 done
 
+# ---- Credential Setup ----
+PI_USER=$(get_config_value ".nodes.default_user" "username" "" "true")
+[[ -z "$PI_USER" ]] && PI_USER="${SSH_USER:-${USERNAME:-pi}}"
+[[ -z "$PI_USER" ]] && prompt_or_default "Enter SSH username: " PI_USER "pi" "false"
+
 PI_PASS=$(get_config_value ".nodes.default_pass" "password" "" "true")
-[[ -z "$PI_PASS" ]] && while true; do
-    read -srp "Enter SSH password for $PI_USER: " PI_PASS && echo
-    [[ -n "$PI_PASS" ]] && break || log ERROR "Password cannot be empty."
-done
+[[ -z "$PI_PASS" ]] && PI_PASS="${SSH_PASSWORD:-${PASSWORD:-}}"
+if [[ -z "$PI_PASS" ]]; then
+    echo ""
+    echo "⚠️  No default password configured in configuration file."
+    echo "   Please enter the SSH password for user '$PI_USER' on your Pi devices:"
+    echo "   (Or set SSH_PASSWORD environment variable for automated deployment)"
+    read -sp "SSH Password: " PI_PASS < /dev/tty || true
+    echo ""
+    if [[ -z "$PI_PASS" ]]; then
+        log ERROR "Password cannot be empty. Deployment cancelled."
+        log ERROR "Set SSH_PASSWORD environment variable or configure password in config.yml"
+        exit 1
+    fi
+fi
 
 # Sanitize password to remove whitespace/newlines
 PI_PASS="$(echo "$PI_PASS" | tr -d '\r' | tr -d '\n' | xargs)"
 
+# Export variables for use in sub-functions
 export NODES_DEFAULT_USER="$PI_USER"
 export NODES_DEFAULT_PASS="$PI_PASS"
+export USERNAME="$PI_USER"      # Ensure USERNAME is set for pre-deployment validation
+export PASSWORD="$PI_PASS"      # Ensure PASSWORD is set for pre-deployment validation
+export PI_USER                  # Export PI_USER as well
+export PI_PASS                  # Export PI_PASS as well
+
+# ---- Execute Pre-deployment Validation ----
+if [[ "$PRE_VALIDATION" == "true" ]]; then
+    echo ""
+    echo "🧹 Running Pre-deployment Validation"
+    echo "===================================="
+    
+    # Source the pre-deployment validation functions
+    if [[ -f "$PROJECT_ROOT/lib/deployment/pre_deployment_validation.sh" ]]; then
+        source "$PROJECT_ROOT/lib/deployment/pre_deployment_validation.sh"
+        
+        # Run validation with current credentials
+        export USER="$PI_USER"
+        if validate_and_prepare_pi_state "${PI_IPS[@]}"; then
+            echo ""
+            echo "✅ Pre-deployment validation completed successfully!"
+            echo "   Your Pis are optimized for deployment."
+        else
+            echo ""
+            echo "❌ Pre-deployment validation encountered issues!"
+            echo "   Continuing with deployment, but you may experience problems."
+            read -p "Continue anyway? (Y/n): " continue_anyway
+            continue_anyway=${continue_anyway:-Y}
+            if [[ ! "${continue_anyway,,}" =~ ^(y|yes)$ ]]; then
+                log ERROR "Deployment cancelled due to validation failures."
+                exit 1
+            fi
+        fi
+    else
+        log "WARN" "Pre-deployment validation script not found, skipping..."
+    fi
+    echo ""
+fi
+
+# ---- Context-Aware Deployment Options ----
+echo ""
+echo "🎯 Context-Aware Deployment Options"
+echo "===================================="
+echo "Enable hardware detection and adaptive deployment optimizations?"
+echo ""
+echo "🔍 Hardware Detection:"
+echo "  • Detect CPU, memory, and storage specifications"
+echo "  • Identify Raspberry Pi models and capabilities"
+echo "  • Analyze cluster-wide performance profile"
+echo ""
+echo "🧹 System Sanitization (optional):"
+echo "  • Clean system caches and temporary files"
+echo "  • Remove old packages and logs"
+echo "  • Optimize system for deployment"
+echo ""
+echo "⚡ Adaptive Configuration:"
+echo "  • Adjust resource limits based on hardware"
+echo "  • Optimize services for detected capabilities"
+echo "  • Apply hardware-specific performance tuning"
+echo ""
+
+# Context-aware deployment option
+prompt_or_default "Enable context-aware deployment? (Y/n): " ENABLE_CONTEXT_AWARE "Y" "false"
+ENABLE_CONTEXT_AWARE=${ENABLE_CONTEXT_AWARE,,}
+if [[ "$ENABLE_CONTEXT_AWARE" =~ ^(y|yes)$ ]]; then
+    echo "✅ Context-aware deployment enabled"
+    
+    # Optional sanitization
+    prompt_or_default "Run system sanitization before deployment? (Y/n): " ENABLE_SANITIZATION "Y" "false"
+    ENABLE_SANITIZATION=${ENABLE_SANITIZATION,,}
+    if [[ "$ENABLE_SANITIZATION" =~ ^(y|yes)$ ]]; then
+        echo ""
+        echo "Select sanitization level:"
+        echo "1. Minimal    - Basic cache cleanup"
+        echo "2. Standard   - Recommended cleanup (default)"
+        echo "3. Thorough   - Comprehensive cleanup"
+        echo "4. Complete   - Full system reset (WARNING: removes user data)"
+        
+        prompt_or_default "Sanitization level (1-4): " sanitization_choice "2" "false"
+        case $sanitization_choice in
+            1) SANITIZATION_LEVEL="minimal" ;;
+            2) SANITIZATION_LEVEL="standard" ;;
+            3) SANITIZATION_LEVEL="thorough" ;;
+            4) 
+                echo ""
+                echo "⚠️  WARNING: Complete sanitization will:"
+                echo "   • Remove all user files and configurations"
+                echo "   • Reset system to clean state"
+                echo "   • This action is irreversible!"
+                echo ""
+                prompt_or_default "Are you sure you want complete sanitization? (y/N): " confirm_complete "N" "false"
+                if [[ "${confirm_complete,,}" =~ ^(y|yes)$ ]]; then
+                    SANITIZATION_LEVEL="complete"
+                else
+                    echo "Falling back to thorough sanitization"
+                    SANITIZATION_LEVEL="thorough"
+                fi
+                ;;
+            *) SANITIZATION_LEVEL="standard" ;;
+        esac
+        echo "Selected sanitization level: $SANITIZATION_LEVEL"
+        export ENABLE_SANITIZATION SANITIZATION_LEVEL
+    else
+        echo "⚠️ Skipping system sanitization"
+        ENABLE_SANITIZATION="false"
+    fi
+    
+    export ENABLE_CONTEXT_AWARE
+else
+    echo "⚠️ Using standard deployment without context-awareness"
+    ENABLE_CONTEXT_AWARE="false"
+    export ENABLE_CONTEXT_AWARE
+fi
 
 # ---- Enhanced Features Configuration ----
 echo ""
 echo "🚀 Enterprise Pi-Swarm Setup"
+
+# Check if configuration is pre-provided (from enhanced-deploy.sh)
+if [[ -n "${WHATSAPP_PHONE_ID:-}" && -n "${WHATSAPP_TOKEN:-}" && -n "${WHATSAPP_RECIPIENT:-}" ]]; then
+    SETUP_WHATSAPP="yes"
+    log INFO "WhatsApp alerts pre-configured for ${WHATSAPP_RECIPIENT}"
+fi
+
+if [[ -n "${SLACK_WEBHOOK:-}" ]]; then
+    SETUP_SLACK="yes"
+    SLACK_WEBHOOK_URL="$SLACK_WEBHOOK"
+    SLACK_CHANNEL="#alerts"
+    log INFO "Slack alerts pre-configured"
+fi
+
+if [[ -n "${DISCORD_WEBHOOK:-}" ]]; then
+    SETUP_DISCORD="yes" 
+    DISCORD_WEBHOOK_URL="$DISCORD_WEBHOOK"
+    log INFO "Discord alerts pre-configured"
+fi
+
+if [[ -n "${ALERT_EMAIL:-}" ]]; then
+    SETUP_EMAIL_ALERTS="yes"
+    log INFO "Email alerts pre-configured for ${ALERT_EMAIL}"
+fi
+
+if [[ -n "${LLM_PROVIDER:-}" ]]; then
+    SETUP_LLM="yes"
+    log INFO "LLM-powered alerts pre-configured with ${LLM_PROVIDER} (${LLM_MODEL:-default})"
+fi
+
 echo "Configure optional enhanced features:"
 echo ""
 
@@ -160,79 +370,153 @@ if [[ "$ENABLE_ALL_FEATURES" =~ ^(y|yes)$ ]]; then
     echo ""
     
     # Still need user input for required parameters
-    read -p "Enter your domain name (e.g., myswarm.example.com): " SSL_DOMAIN
-    read -p "Enter your email for Let's Encrypt: " SSL_EMAIL
-    read -p "Enter Slack webhook URL (optional, press Enter to skip): " SLACK_WEBHOOK_URL
-    read -p "Enter Slack channel (e.g., #alerts): " SLACK_CHANNEL
-    read -p "Enter email SMTP server (optional, press Enter to skip): " SMTP_SERVER
+    prompt_or_default "Enter your domain name (e.g., myswarm.example.com): " SSL_DOMAIN "" "false"
+    prompt_or_default "Enter your email for Let's Encrypt: " SSL_EMAIL "" "false"
+    prompt_or_default "Enter Slack webhook URL (optional, press Enter to skip): " SLACK_WEBHOOK_URL "" "false"
+    prompt_or_default "Enter Slack channel (e.g., #alerts): " SLACK_CHANNEL "" "false"
+    prompt_or_default "Enter email SMTP server (optional, press Enter to skip): " SMTP_SERVER "" "false"
     if [[ -n "$SMTP_SERVER" ]]; then
-        read -p "Enter SMTP username: " SMTP_USER
-        read -s -p "Enter SMTP password: " SMTP_PASS && echo
-        read -p "Enter notification email address: " ALERT_EMAIL
+        prompt_or_default "Enter SMTP username: " SMTP_USER "" "false"
+        prompt_or_default "Enter SMTP password: " SMTP_PASS "" "true"
+        prompt_or_default "Enter notification email address: " ALERT_EMAIL "" "false"
     fi
-    read -p "Enter Discord webhook URL (optional, press Enter to skip): " DISCORD_WEBHOOK_URL
-    
+    prompt_or_default "Enter Discord webhook URL (optional, press Enter to skip): " DISCORD_WEBHOOK_URL "" "false"
+    prompt_or_default "Configure WhatsApp alerts? (y/N): " setup_whatsapp "n" "false"
+    setup_whatsapp=${setup_whatsapp,,}
+    if [[ "$setup_whatsapp" =~ ^(y|yes)$ ]]; then
+        prompt_or_default "Enter Phone Number ID: " WHATSAPP_PHONE_ID "" "false"
+        prompt_or_default "Enter Access Token: " WHATSAPP_TOKEN "" "false"
+        prompt_or_default "Enter recipient phone number (with country code): " WHATSAPP_RECIPIENT "" "false"
+    fi
     export SSL_DOMAIN SSL_EMAIL ENABLE_LETSENCRYPT
     export SLACK_WEBHOOK_URL SLACK_CHANNEL SETUP_SLACK
     export SMTP_SERVER SMTP_USER SMTP_PASS ALERT_EMAIL SETUP_EMAIL_ALERTS
     export DISCORD_WEBHOOK_URL SETUP_DISCORD
+    export WHATSAPP_PHONE_ID WHATSAPP_TOKEN WHATSAPP_RECIPIENT
     export SETUP_HA ENABLE_SSL_MONITORING ENABLE_TEMPLATES ENABLE_ADVANCED_MONITORING
 else
     # Individual feature configuration
     # SSL Automation Configuration
-    read -p "Enable Let's Encrypt SSL automation? (y/N): " ENABLE_LETSENCRYPT
+    prompt_or_default "Enable Let's Encrypt SSL automation? (y/N): " ENABLE_LETSENCRYPT "n" "false"
     ENABLE_LETSENCRYPT=${ENABLE_LETSENCRYPT,,}
     if [[ "$ENABLE_LETSENCRYPT" =~ ^(y|yes)$ ]]; then
-        read -p "Enter your domain name (e.g., myswarm.example.com): " SSL_DOMAIN
-        read -p "Enter your email for Let's Encrypt: " SSL_EMAIL
+        prompt_or_default "Enter your domain name (e.g., myswarm.example.com): " SSL_DOMAIN "" "false"
+        prompt_or_default "Enter your email for Let's Encrypt: " SSL_EMAIL "" "false"
         export SSL_DOMAIN SSL_EMAIL ENABLE_LETSENCRYPT
     fi
 
     # Alert Integration Configuration
-    read -p "Configure Slack alerts? (y/N): " SETUP_SLACK
+    prompt_or_default "Configure Slack alerts? (y/N): " SETUP_SLACK "n" "false"
     SETUP_SLACK=${SETUP_SLACK,,}
     if [[ "$SETUP_SLACK" =~ ^(y|yes)$ ]]; then
-        read -p "Enter Slack webhook URL: " SLACK_WEBHOOK_URL
-        read -p "Enter Slack channel (e.g., #alerts): " SLACK_CHANNEL
+        prompt_or_default "Enter Slack webhook URL: " SLACK_WEBHOOK_URL "" "false"
+        prompt_or_default "Enter Slack channel (e.g., #alerts): " SLACK_CHANNEL "" "false"
         export SLACK_WEBHOOK_URL SLACK_CHANNEL SETUP_SLACK
     fi
 
     # Email alerts configuration
-    read -p "Configure email alerts? (y/N): " SETUP_EMAIL_ALERTS
+    prompt_or_default "Configure email alerts? (y/N): " SETUP_EMAIL_ALERTS "n" "false"
     SETUP_EMAIL_ALERTS=${SETUP_EMAIL_ALERTS,,}
     if [[ "$SETUP_EMAIL_ALERTS" =~ ^(y|yes)$ ]]; then
-        read -p "Enter SMTP server (e.g., smtp.gmail.com:587): " SMTP_SERVER
-        read -p "Enter SMTP username: " SMTP_USER
-        read -s -p "Enter SMTP password: " SMTP_PASS && echo
-        read -p "Enter notification email address: " ALERT_EMAIL
+        prompt_or_default "Enter SMTP server (e.g., smtp.gmail.com:587): " SMTP_SERVER "" "false"
+        prompt_or_default "Enter SMTP username: " SMTP_USER "" "false"
+        prompt_or_default "Enter SMTP password: " SMTP_PASS "" "true"
+        prompt_or_default "Enter notification email address: " ALERT_EMAIL "" "false"
         export SMTP_SERVER SMTP_USER SMTP_PASS ALERT_EMAIL SETUP_EMAIL_ALERTS
     fi
 
     # Discord alerts configuration
-    read -p "Configure Discord alerts? (y/N): " SETUP_DISCORD
+    prompt_or_default "Configure Discord alerts? (y/N): " SETUP_DISCORD "n" "false"
     SETUP_DISCORD=${SETUP_DISCORD,,}
     if [[ "$SETUP_DISCORD" =~ ^(y|yes)$ ]]; then
-        read -p "Enter Discord webhook URL: " DISCORD_WEBHOOK_URL
+        prompt_or_default "Enter Discord webhook URL: " DISCORD_WEBHOOK_URL "" "false"
         export DISCORD_WEBHOOK_URL SETUP_DISCORD
+    fi
+
+    # WhatsApp alerts configuration
+    prompt_or_default "Configure WhatsApp Business API alerts? (y/N): " SETUP_WHATSAPP "n" "false"
+    SETUP_WHATSAPP=${SETUP_WHATSAPP,,}
+    if [[ "$SETUP_WHATSAPP" =~ ^(y|yes)$ ]]; then
+        prompt_or_default "Enter Phone Number ID: " WHATSAPP_PHONE_ID "" "false"
+        prompt_or_default "Enter Access Token: " WHATSAPP_TOKEN "" "false"
+        prompt_or_default "Enter recipient phone number (with country code, e.g., +1234567890): " WHATSAPP_RECIPIENT "" "false"
+        export WHATSAPP_PHONE_ID WHATSAPP_TOKEN WHATSAPP_RECIPIENT SETUP_WHATSAPP
+    fi
+
+    # LLM-powered intelligent alerts configuration
+    prompt_or_default "Configure LLM-powered intelligent alerts? (y/N): " SETUP_LLM "n" "false"
+    SETUP_LLM=${SETUP_LLM,,}
+    if [[ "$SETUP_LLM" =~ ^(y|yes)$ ]]; then
+        echo "🤖 LLM-Powered Intelligent Alerts Configuration"
+        echo "💡 AI-powered alert analysis with automated remediation suggestions"
+        echo ""
+        echo "Choose LLM provider:"
+        echo "1. OpenAI (GPT-4/GPT-3.5)"
+        echo "2. Anthropic (Claude)"
+        echo "3. Azure OpenAI"
+        echo "4. Ollama (Local/Private)"
+        
+        prompt_or_default "Select provider (1-4): " llm_provider_choice "1" "false"
+        case $llm_provider_choice in
+            1)
+                LLM_PROVIDER="openai"
+                prompt_or_default "Enter OpenAI API key: " LLM_API_KEY "" "false"
+                prompt_or_default "Model name (default: gpt-4): " LLM_MODEL "gpt-4" "false"
+                ;;
+            2)
+                LLM_PROVIDER="anthropic"
+                prompt_or_default "Enter Anthropic API key: " LLM_API_KEY "" "false"
+                prompt_or_default "Model name (default: claude-3-sonnet-20240229): " LLM_MODEL "claude-3-sonnet-20240229" "false"
+                ;;
+            3)
+                LLM_PROVIDER="azure"
+                prompt_or_default "Enter Azure OpenAI API key: " LLM_API_KEY "" "false"
+                prompt_or_default "Enter Azure endpoint: " LLM_API_ENDPOINT "" "false"
+                prompt_or_default "Deployment name: " LLM_MODEL "" "false"
+                ;;
+            4)
+                LLM_PROVIDER="ollama"
+                prompt_or_default "Ollama endpoint (default: http://localhost:11434): " LLM_API_ENDPOINT "http://localhost:11434" "false"
+                prompt_or_default "Model name (default: llama3:8b): " LLM_MODEL "llama3:8b" "false"
+                ;;
+            *)
+                echo "❌ Invalid choice, skipping LLM configuration"
+                SETUP_LLM="no"
+                ;;
+        esac
+        
+        if [[ "$SETUP_LLM" == "yes" ]]; then
+            prompt_or_default "Enable automated remediation for safe commands? (y/n): " auto_remediation "n" "false"
+            case $auto_remediation in
+                [Yy]*)
+                    LLM_AUTO_REMEDIATION="true"
+                    echo "⚠️  Automated remediation enabled - AI can execute safe commands"
+                    ;;
+                *)
+                    LLM_AUTO_REMEDIATION="false"
+                    echo "✅ Manual review required for all remediation"
+                    ;;
+            esac
+            export LLM_PROVIDER LLM_API_KEY LLM_API_ENDPOINT LLM_MODEL LLM_AUTO_REMEDIATION SETUP_LLM
+        fi
     fi
 
     # High Availability Configuration
     if [[ ${#PI_IPS[@]} -ge 3 ]]; then
-        read -p "Setup high availability cluster? (y/N): " SETUP_HA
-        SETUP_HA=${SETUP_HA,,}
+        prompt_or_default "Setup high availability cluster? (y/N): " SETUP_HA "n" "false"
         export SETUP_HA
     fi
 
     # Additional enterprise features
-    read -p "Enable SSL certificate monitoring? (y/N): " ENABLE_SSL_MONITORING
+    prompt_or_default "Enable SSL certificate monitoring? (y/N): " ENABLE_SSL_MONITORING "n" "false"
     ENABLE_SSL_MONITORING=${ENABLE_SSL_MONITORING,,}
     export ENABLE_SSL_MONITORING
 
-    read -p "Initialize service template catalog? (y/N): " ENABLE_TEMPLATES
+    prompt_or_default "Initialize service template catalog? (y/N): " ENABLE_TEMPLATES "n" "false"
     ENABLE_TEMPLATES=${ENABLE_TEMPLATES,,}
     export ENABLE_TEMPLATES
 
-    read -p "Enable advanced performance monitoring? (y/N): " ENABLE_ADVANCED_MONITORING
+    prompt_or_default "Enable advanced performance monitoring? (y/N): " ENABLE_ADVANCED_MONITORING "n" "false"
     ENABLE_ADVANCED_MONITORING=${ENABLE_ADVANCED_MONITORING,,}
     export ENABLE_ADVANCED_MONITORING
 fi
@@ -248,6 +532,107 @@ log INFO "Using existing static IPs: ${PI_STATIC_IPS[*]}"
 
 LAST_BACKUP_DIR="$BACKUP_DIR/$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$LAST_BACKUP_DIR"
+
+# ---- Context-Aware Hardware Detection (Optional) ----
+if [[ -n "${ENABLE_CONTEXT_AWARE:-}" && "$ENABLE_CONTEXT_AWARE" == "true" ]]; then
+    echo ""
+    echo "🔍 Context-Aware Hardware Detection"
+    echo "===================================="
+    
+    # Source hardware detection and sanitization modules
+    if [[ -f "$PROJECT_ROOT/lib/system/hardware_detection.sh" ]]; then
+        source "$PROJECT_ROOT/lib/system/hardware_detection.sh"
+    fi
+    if [[ -f "$PROJECT_ROOT/lib/system/sanitization.sh" ]]; then
+        source "$PROJECT_ROOT/lib/system/sanitization.sh"
+    fi
+    
+    # Initialize context-aware deployment variables
+    declare -A CLUSTER_CAPABILITIES
+    total_memory=0
+    total_cores=0
+    min_memory=999999
+    min_cores=999999
+    all_are_pi=true
+    has_ssd=false
+    
+    # Detect hardware for each Pi
+    for PI_IP in "${PI_STATIC_IPS[@]}"; do
+        SSH_USER="${PI_PER_HOST_USER[$PI_IP]:-$PI_USER}"
+        SSH_PASS="${PI_PER_HOST_PASS[$PI_IP]:-$PI_PASS}"
+        
+        log INFO "🔍 Detecting hardware for $PI_IP..."
+        
+        if command -v detect_hardware >/dev/null 2>&1 && detect_hardware "$PI_IP" "$SSH_USER" "$SSH_PASS"; then
+            # Extract detected capabilities
+            local array_name="HW_${PI_IP//./_}"
+            local -n hw_ref=$array_name 2>/dev/null
+            
+            if [[ -n "${hw_ref[MEMORY_TOTAL_MB]:-}" ]]; then
+                local memory_mb="${hw_ref[MEMORY_TOTAL_MB]}"
+                local cores="${hw_ref[CPU_CORES]:-1}"
+                
+                total_memory=$((total_memory + memory_mb))
+                total_cores=$((total_cores + cores))
+                
+                [[ $memory_mb -lt $min_memory ]] && min_memory=$memory_mb
+                [[ $cores -lt $min_cores ]] && min_cores=$cores
+                
+                [[ "${hw_ref[IS_RASPBERRY_PI]:-false}" != "true" ]] && all_are_pi=false
+                [[ "${hw_ref[STORAGE_TYPE]:-HDD}" == "SSD" ]] && has_ssd=true
+                
+                log INFO "  📊 $PI_IP: ${memory_mb}MB RAM, ${cores} cores, ${hw_ref[STORAGE_TYPE]:-HDD}"
+            fi
+            
+            # Optional sanitization if enabled
+            if [[ -n "${ENABLE_SANITIZATION:-}" && "$ENABLE_SANITIZATION" == "true" ]]; then
+                local sanitization_level="${SANITIZATION_LEVEL:-standard}"
+                log INFO "🧹 Sanitizing $PI_IP (level: $sanitization_level)..."
+                if command -v sanitize_system >/dev/null 2>&1; then
+                    sanitize_system "$PI_IP" "$SSH_USER" "$SSH_PASS" "$sanitization_level" || log WARN "Sanitization failed for $PI_IP"
+                fi
+            fi
+        else
+            log WARN "Hardware detection failed for $PI_IP, using default configuration"
+        fi
+    done
+    
+    # Determine cluster profile based on detected capabilities
+    local cluster_profile="basic"
+    if [[ $min_memory -ge 4096 && $min_cores -ge 4 ]]; then
+        cluster_profile="high-performance"
+    elif [[ $min_memory -ge 2048 && $min_cores -ge 2 ]]; then
+        cluster_profile="standard"
+    elif [[ $min_memory -ge 1024 ]]; then
+        cluster_profile="lightweight"
+    fi
+    
+    # Set cluster-wide optimizations based on detected profile
+    CLUSTER_CAPABILITIES[PROFILE]="$cluster_profile"
+    CLUSTER_CAPABILITIES[TOTAL_MEMORY_GB]=$((total_memory / 1024))
+    CLUSTER_CAPABILITIES[TOTAL_CORES]="$total_cores"
+    CLUSTER_CAPABILITIES[MIN_MEMORY_MB]="$min_memory"
+    CLUSTER_CAPABILITIES[MIN_CORES]="$min_cores"
+    CLUSTER_CAPABILITIES[ALL_RASPBERRY_PI]="$all_are_pi"
+    CLUSTER_CAPABILITIES[HAS_SSD]="$has_ssd"
+    
+    echo ""
+    echo "📋 Cluster Analysis Summary:"
+    echo "   Profile: $cluster_profile"
+    echo "   Total Resources: ${CLUSTER_CAPABILITIES[TOTAL_MEMORY_GB]}GB RAM, $total_cores cores"
+    echo "   Minimum Node: ${min_memory}MB RAM, $min_cores cores"
+    echo "   All Raspberry Pi: $all_are_pi"
+    echo "   Has SSD Storage: $has_ssd"
+    echo ""
+    
+    # Export cluster capabilities for use in deployment configuration
+    export CLUSTER_PROFILE="$cluster_profile"
+    export CLUSTER_MIN_MEMORY="$min_memory"
+    export CLUSTER_MIN_CORES="$min_cores"
+    export CLUSTER_HAS_SSD="$has_ssd"
+    
+    log INFO "Context-aware detection completed. Adapting deployment strategy..."
+fi
 
 # ---- Configure Each Pi ----
 for PI_IP in "${PI_STATIC_IPS[@]}"; do
@@ -324,6 +709,23 @@ if [[ ${#PI_STATIC_IPS[@]} -gt 0 ]]; then
         setup_discord_alerts "$DISCORD_WEBHOOK_URL" || log WARN "Discord setup failed"
     fi
     
+    if [[ "$SETUP_WHATSAPP" =~ ^(y|yes)$ ]] && command -v setup_whatsapp_alerts >/dev/null 2>&1; then
+        log INFO "Configuring WhatsApp alert integration..."
+        setup_whatsapp_alerts "$WHATSAPP_PHONE_ID" "$WHATSAPP_TOKEN" "$WHATSAPP_RECIPIENT" "${PI_IPS[0]}" || log WARN "WhatsApp setup failed"
+    fi
+    
+    if [[ "$SETUP_LLM" =~ ^(y|yes)$ ]] && command -v setup_llm_alerts >/dev/null 2>&1; then
+        log INFO "Configuring LLM-powered intelligent alerts..."
+        if [[ "$LLM_PROVIDER" == "ollama" ]]; then
+            # Setup local Ollama first if using local LLM
+            setup_local_llm "${PI_IPS[0]}" "$LLM_MODEL" || log WARN "Local LLM setup failed"
+        fi
+        setup_llm_alerts "$LLM_PROVIDER" "$LLM_API_KEY" "$LLM_API_ENDPOINT" "$LLM_MODEL" "${PI_IPS[0]}" || log WARN "LLM alerts setup failed"
+        
+        # Test the integration
+        test_llm_integration "${PI_IPS[0]}" || log WARN "LLM integration test failed"
+    fi
+    
     if [[ "$SETUP_HA" =~ ^(y|yes)$ ]] && command -v setup_high_availability >/dev/null 2>&1; then
         log INFO "Setting up high availability cluster..."
         setup_high_availability "${PI_STATIC_IPS[@]}" || log WARN "HA setup failed"
@@ -398,7 +800,7 @@ echo ""
 echo "🐳 PORTAINER (Container Management):"
 echo "   • HTTPS: https://$manager_ip:9443"
 echo "   • HTTP:  http://$manager_ip:9000"
-echo "   • Login: admin / ${PORTAINER_PASSWORD:-piswarm123}"
+echo "   • Login: admin / [Password set during deployment]"
 echo ""
 echo "📊 GRAFANA (Monitoring Dashboard):"
 echo "   • URL: http://$manager_ip:3000"

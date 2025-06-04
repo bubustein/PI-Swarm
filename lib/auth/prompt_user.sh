@@ -6,7 +6,8 @@ prompt_user() {
         echo ""
         echo "🔐 SSH Authentication Setup"
         echo "Enter the username for your Raspberry Pi accounts."
-        echo "⚠️  Note: Do not use 'root' - use your regular Pi user account (e.g., 'pi', 'ubuntu', etc.)"
+        echo "⚠️  Note: Do not use 'root' - use your regular Pi user account (e.g., 'ubuntu', 'pi', etc.)"
+        echo "💡 For Ubuntu 24.04.2 LTS, the default username is typically 'ubuntu'"
         echo ""
         read -r -p "Enter SSH username for Pis: " NODES_DEFAULT_USER
         

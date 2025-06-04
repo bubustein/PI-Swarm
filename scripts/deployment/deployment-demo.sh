@@ -13,33 +13,36 @@ echo "  ✓ Clear user feedback and guidance"
 echo "  ✓ Comprehensive validation and summary"
 echo ""
 
-cd /home/luser/Downloads/PI-Swarm
+# Get script directory and change to project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
 echo "📋 Step 1: Pre-deployment validation..."
 ./scripts/testing/comprehensive-test.sh
 
 echo ""
 echo "📋 Step 2: Mock deployment test (no hardware required)..."
-./scripts/testing/mock-deployment-test.sh
+./mock-deployment-test.sh
 
 echo ""
 echo "📋 Step 3: Enhanced connectivity validation..."
-./scripts/deployment/enhanced-deploy.sh --dry-run 2>/dev/null || echo "✅ Enhanced deployment script validated (expected to ask for input)"
+./enhanced-deploy.sh --dry-run 2>/dev/null || echo "✅ Enhanced deployment script validated (expected to ask for input)"
 
 echo ""
 echo "🎯 Deployment Options Available:"
 echo ""
 echo "1. 🤖 Automated Deployment (no user input required):"
-echo "   ./scripts/deployment/automated-deploy.sh"
+echo "   ./automated-deploy.sh"
 echo ""
 echo "2. 🔧 Enhanced Interactive Deployment (with better error handling):"
-echo "   ./scripts/deployment/enhanced-deploy.sh"
+echo "   ./enhanced-deploy.sh"
 echo ""
 echo "3. 🎛️ Standard Deployment (traditional method):"
 echo "   ./core/swarm-cluster.sh"
 echo ""
 echo "4. 🧪 Test Mode (validates everything without deployment):"
-echo "   ./scripts/testing/final-validation-test.sh"
+echo "   ./final-validation-test.sh"
 echo ""
 
 echo "✨ Key Improvements in v2.0.0:"
@@ -55,7 +58,7 @@ echo "🎉 Pi-Swarm v2.0.0 is ready for production deployment!"
 echo "   Choose the deployment method that best fits your needs."
 echo ""
 echo "💡 Tip: Start with the automated deployment for the quickest setup:"
-echo "   ./scripts/deployment/automated-deploy.sh"
+echo "   ./automated-deploy.sh"
 echo ""
 echo "📖 For more information, see:"
 echo "   • README.md - Quick start guide"

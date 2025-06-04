@@ -313,6 +313,124 @@ EOF
     log "INFO" "✅ Discord integration setup complete"
 }
 
+# Configure WhatsApp Business API alerts
+setup_whatsapp_alerts() {
+    local phone_number_id="$1"
+    local access_token="$2"
+    local recipient_number="$3"
+    local manager_ip="$4"
+    
+    log "INFO" "Setting up WhatsApp alert integration..."
+    
+    # Create WhatsApp notification script
+    cat > "/tmp/whatsapp-notify.sh" << 'EOF'
+#!/bin/bash
+# WhatsApp Business API notification script for Pi-Swarm alerts
+
+PHONE_NUMBER_ID="$1"
+ACCESS_TOKEN="$2"
+RECIPIENT_NUMBER="$3"
+HOSTNAME=$(hostname)
+CLUSTER_NAME="Pi-Swarm"
+
+send_whatsapp_message() {
+    local message="$1"
+    local template_type="$2"
+    
+    # Format message with cluster info
+    local full_message="🚨 *Pi-Swarm Alert*
+    
+*Cluster:* $CLUSTER_NAME
+*Node:* $HOSTNAME
+*Time:* $(date)
+*Alert:* $message"
+    
+    # Send via WhatsApp Business API
+    curl -X POST \
+        "https://graph.facebook.com/v18.0/$PHONE_NUMBER_ID/messages" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"messaging_product\": \"whatsapp\",
+            \"to\": \"$RECIPIENT_NUMBER\",
+            \"type\": \"text\",
+            \"text\": {
+                \"body\": \"$full_message\"
+            }
+        }" || {
+        echo "Failed to send WhatsApp message"
+        return 1
+    }
+}
+
+# Alert functions
+alert_service_down() {
+    local service="$1"
+    send_whatsapp_message "🔴 Service DOWN: $service has stopped responding" "critical"
+}
+
+alert_node_down() {
+    local node="$1"
+    send_whatsapp_message "📴 Node OFFLINE: $node is unreachable" "critical"
+}
+
+alert_high_usage() {
+    local resource="$1"
+    local usage="$2"
+    send_whatsapp_message "⚠️ HIGH USAGE: $resource at $usage%" "warning"
+}
+
+alert_ssl_expiry() {
+    local domain="$1"
+    local days="$2"
+    send_whatsapp_message "🔒 SSL EXPIRY: Certificate for $domain expires in $days days" "warning"
+}
+
+alert_deployment_success() {
+    local version="$1"
+    send_whatsapp_message "✅ DEPLOYMENT: Successfully deployed version $version" "info"
+}
+
+alert_backup_complete() {
+    local backup_size="$1"
+    send_whatsapp_message "💾 BACKUP: Cluster backup completed ($backup_size)" "info"
+}
+
+# Main script execution
+case "$4" in
+    "service-down")
+        alert_service_down "$5"
+        ;;
+    "node-down")
+        alert_node_down "$5"
+        ;;
+    "high-usage")
+        alert_high_usage "$5" "$6"
+        ;;
+    "ssl-expiry")
+        alert_ssl_expiry "$5" "$6"
+        ;;
+    "deployment")
+        alert_deployment_success "$5"
+        ;;
+    "backup")
+        alert_backup_complete "$5"
+        ;;
+    *)
+        echo "Usage: $0 phone_number_id access_token recipient_number {service-down|node-down|high-usage|ssl-expiry|deployment|backup} [args...]"
+        exit 1
+        ;;
+esac
+EOF
+    
+    # Deploy WhatsApp notification script
+    scp "/tmp/whatsapp-notify.sh" "$USER@$manager_ip:/tmp/"
+    ssh "$USER@$manager_ip" "sudo mv /tmp/whatsapp-notify.sh /usr/local/bin/whatsapp-notify && sudo chmod +x /usr/local/bin/whatsapp-notify"
+    
+    log "INFO" "✅ WhatsApp integration setup complete"
+    log "INFO" "📱 WhatsApp alerts will be sent to: $recipient_number"
+}
+
 # Setup comprehensive alerting with Alertmanager
 setup_alertmanager_integration() {
     local manager_ip="$1"
@@ -410,5 +528,19 @@ test_alert_integrations() {
         log "INFO" "✅ Discord test sent"
     fi
     
+    # Test WhatsApp
+    if ssh "$USER@$manager_ip" "command -v whatsapp-notify &> /dev/null"; then
+        ssh "$USER@$manager_ip" "whatsapp-notify deployment 'Alert Integration Test'"
+        log "INFO" "✅ WhatsApp test sent"
+    fi
+    
     log "INFO" "✅ All alert integration tests complete"
 }
+
+# Export all alert integration functions
+export -f setup_slack_alerts
+export -f setup_email_alerts  
+export -f setup_discord_alerts
+export -f setup_whatsapp_alerts
+export -f setup_alertmanager_integration
+export -f test_alert_integrations

@@ -7,15 +7,18 @@ Pi-Swarm is designed to run as a **regular user** and follows Linux security bes
 ### ✅ Recommended Setup
 
 **Use a regular user account on your Raspberry Pis:**
-- Standard usernames: `pi`, `ubuntu`, `admin`, or your custom username
+- Standard usernames: `ubuntu`, `pi`, `admin`, or your custom username
 - The user must have `sudo` privileges for system administration
 - SSH must be enabled for this user account
 
 **Example valid usernames:**
-- `pi` (default Raspberry Pi OS user)
-- `ubuntu` (Ubuntu user)
+- `ubuntu` (default Ubuntu 24.04 LTS user)
+- `pi` (Raspberry Pi OS user, if using Pi OS)
 - `admin` (custom administrator)
 - `yourusername` (personalized account)
+
+**Note for Ubuntu 24.04.2 LTS users:**
+Ubuntu on Raspberry Pi typically uses `ubuntu` as the default username, not `pi`.
 
 ### ⚠️ What to Avoid
 
@@ -33,10 +36,10 @@ When you run `./swarm-cluster.sh`, you'll see:
 ```
 🔐 SSH Authentication Setup
 Enter the username for your Raspberry Pi accounts.
-⚠️  Note: Do not use 'root' - use your regular Pi user account (e.g., 'pi', 'ubuntu', etc.)
+⚠️  Note: Do not use 'root' - use your regular Pi user account (e.g., 'ubuntu', 'pi', etc.)
 
-Enter SSH username for Pis: pi
-Enter SSH password for pi: [hidden]
+Enter SSH username for Pis: ubuntu
+Enter SSH password for ubuntu: [hidden]
 ```
 
 ### 2. Root User Protection
@@ -71,7 +74,7 @@ If root has no password, consider enabling SSH keys or using a regular user.
 
 **For regular users:**
 ```
-SSH authentication failed for pi@192.168.1.10
+SSH authentication failed for ubuntu@192.168.1.10
 Please check your username and password.
 Ensure SSH is enabled and the user account exists on the Pi.
 ```
@@ -87,7 +90,7 @@ Ensure SSH is enabled and the user account exists on the Pi.
 
 2. **Check user account exists:**
    ```bash
-   id pi  # Replace 'pi' with your username
+   id ubuntu  # Replace 'ubuntu' with your username
    ```
 
 3. **Verify sudo privileges:**
@@ -97,7 +100,7 @@ Ensure SSH is enabled and the user account exists on the Pi.
 
 4. **Test SSH manually:**
    ```bash
-   ssh pi@192.168.1.10  # Replace with your user and IP
+   ssh ubuntu@192.168.1.10  # Replace with your user and IP
    ```
 
 ## 🛡️ Security Features
@@ -130,10 +133,10 @@ Before running Pi-Swarm, ensure:
 
 ### Verify Setup Command
 ```bash
-# Test SSH access to each Pi
-ssh pi@192.168.1.10 'sudo whoami'  # Should return 'root'
-ssh pi@192.168.1.11 'sudo whoami'
-ssh pi@192.168.1.12 'sudo whoami'
+# Test SSH access to each Pi (adjust username based on your OS)
+ssh ubuntu@192.168.1.10 'sudo whoami'  # Should return 'root' (Ubuntu 24.04)
+ssh ubuntu@192.168.1.11 'sudo whoami'  # Or use 'pi' if running Pi OS
+ssh ubuntu@192.168.1.12 'sudo whoami'
 ```
 
 ## 🎯 Why This Approach?

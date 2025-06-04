@@ -6,7 +6,10 @@ set -euo pipefail
 echo "🧪 Final Pi-Swarm Validation Test"
 echo "=================================="
 
-cd /home/luser/Downloads/PI-Swarm
+# Get script directory and change to project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
 # Test 1: Function Loading
 echo "🔧 Test 1: Function Loading..."
@@ -96,10 +99,10 @@ fi
 # Test 6: Automated Deployment Script
 echo ""
 echo "🚀 Test 6: Automated Deployment Script..."
-if [[ -x "scripts/deployment/automated-deploy.sh" ]]; then
+if [[ -x "automated-deploy.sh" ]]; then
     echo "✅ Automated deployment script is executable"
     # Check if it has all required inputs
-    input_count=$(grep -c "echo.*#" scripts/deployment/automated-deploy.sh || true)
+    input_count=$(grep -c "echo.*#" automated-deploy.sh || true)
     if [[ $input_count -ge 10 ]]; then
         echo "✅ All interactive prompts handled (${input_count} inputs)"
     else

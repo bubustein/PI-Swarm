@@ -1,7 +1,44 @@
+# Logs
 logs/
 *.log
 *.old
+data/logs/*.log
+
+# Temporary files
+*.tmp
+*~
+*.bak
+
+# Environment and credentials
 .env
+*.pem
+*.key
+id_rsa*
+.credentials
+
+# Python
 __pycache__/
+
+# Archives
 PISworm_extracted/
 *.zip
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/settings.json
+.idea/
+
+# Test outputs
+test_*.log
+debug_*.log
+
+# Cleanup scripts
+cleanup-project.sh

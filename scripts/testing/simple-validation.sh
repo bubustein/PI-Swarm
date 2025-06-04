@@ -1,12 +1,15 @@
 #!/bin/bash
 
-# Simple final validation test
+# Simple validation test
 set -euo pipefail
 
 echo "🧪 Simple Pi-Swarm Validation"
 echo "============================="
 
-cd /home/luser/Downloads/PI-Swarm
+# Get script directory and change to project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
 # Test function loading
 echo "🔧 Testing function loading..."

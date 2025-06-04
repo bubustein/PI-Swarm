@@ -195,38 +195,14 @@ services:
 
 volumes:
   prometheus_data:
+    driver: local
   grafana_data:
+    driver: local
   portainer_data:
+    driver: local
   alertmanager_data:
+    driver: local
   traefik_data:
-
-networks:
-  monitoring:
-    driver: overlay
-    attachable: true
-    deploy:
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "--no-check-certificate", "https://localhost:9443/api/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-volumes:
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-  portainer_data:
-    driver: local
-  alertmanager_data:
     driver: local
 
 networks:

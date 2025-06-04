@@ -33,7 +33,8 @@ pi_ssh_check_with_guidance() {
         if [[ "$user" == "root" ]]; then
             log WARN "SSH authentication failed for root@$host"
             log INFO "Root login is often disabled on Pi systems for security."
-            log INFO "Try using your regular Pi user account (e.g., 'pi', 'ubuntu', etc.)"
+            log INFO "Try using your regular Pi user account (e.g., 'ubuntu', 'pi', etc.)"
+            log INFO "For Ubuntu 24.04.2 LTS, use 'ubuntu' instead of 'root'"
             log INFO "If root has no password, consider enabling SSH keys or using a regular user."
         else
             log WARN "SSH authentication failed for $user@$host"

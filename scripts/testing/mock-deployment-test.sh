@@ -5,12 +5,15 @@ set -euo pipefail
 
 echo "🚀 Mock Pi-Swarm deployment test..."
 
-cd /home/luser/Downloads/PI-Swarm
+# Get script directory and change to project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
 # Mock environment variables
 export PI_STATIC_IPS=("192.168.3.201" "192.168.3.202" "192.168.3.203")
 export PI_USER="luser"
-export PI_PASS="raspberry"
+export PI_PASS="${TEST_PI_PASSWORD:-}"
 export ENABLE_LETSENCRYPT="n"
 export SETUP_SLACK="n"
 export SETUP_EMAIL_ALERTS="n"
