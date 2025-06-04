@@ -20,7 +20,7 @@ if [[ -z "${NODES_DEFAULT_PASS:-}" ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/swarm-cluster.sh"
+source core/swarm-cluster.sh
 
 # Colors for output
 readonly GREEN='\033[0;32m'
