@@ -158,7 +158,7 @@ essential_functions=(
 #### For Regular Use:
 ```bash
 # Navigate to project directory
-cd /home/luser/Downloads/PI-Swarm
+cd /path/to/PI-Swarm
 
 # Run as regular user (no sudo required)
 ./core/swarm-cluster.sh

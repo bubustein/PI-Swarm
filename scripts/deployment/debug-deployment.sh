@@ -38,7 +38,7 @@ swarm_status=$(ssh_exec "$MANAGER_IP" "$USER" "$PASS" "docker info --format '{{.
 echo "Swarm status: $swarm_status"
 
 echo "🔍 Testing file availability..."
-ssh_exec "$MANAGER_IP" "$USER" "$PASS" "cd ~/PISworm && ls -la docker-compose.monitoring.yml" || echo "❌ Compose file not found"
+ssh_exec "$MANAGER_IP" "$USER" "$PASS" "cd ~/piswarm && ls -la docker-compose.monitoring.yml" || echo "❌ Compose file not found"
 
 echo "🔍 Testing Docker Compose availability..."
 ssh_exec "$MANAGER_IP" "$USER" "$PASS" "

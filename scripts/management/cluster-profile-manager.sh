@@ -304,8 +304,8 @@ backup_cluster_config() {
     local manager_ip="${PI_STATIC_IPS[0]}"
     
     echo "Backing up remote configuration from $manager_ip..."
-    scp_download "~/PISworm/docker-compose.*.yml" "$backup_dir/" "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" 2>/dev/null || true
-    scp_download "~/PISworm/.env" "$backup_dir/" "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" 2>/dev/null || true
+    scp_download "~/piswarm/docker-compose.*.yml" "$backup_dir/" "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" 2>/dev/null || true
+    scp_download "~/piswarm/.env" "$backup_dir/" "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" 2>/dev/null || true
     
     # Create backup info file
     cat > "$backup_dir/backup_info.txt" << EOF

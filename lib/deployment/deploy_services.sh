@@ -78,7 +78,7 @@ deploy_services()     # If no password is set in environment, prompt for it
     # Copy adaptive configuration to manager node if context-aware deployment is enabled
     if [[ "${CONTEXT_AWARE_DEPLOYMENT:-false}" == "true" ]]; then
         log INFO "Copying adaptive docker-compose configuration to manager node"
-        if ! scp_file "$PI_SWARM_CONFIG_DIR/docker-compose.adaptive.yml" "~/PISworm/docker-compose.adaptive.yml" "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS"; then
+        if ! scp_file "$PI_SWARM_CONFIG_DIR/docker-compose.adaptive.yml" "~/piswarm/docker-compose.adaptive.yml" "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS"; then
             log WARN "Failed to copy adaptive configuration, falling back to standard configuration"
             local compose_file_name="docker-compose.monitoring.yml"
         fi
@@ -87,7 +87,7 @@ deploy_services()     # If no password is set in environment, prompt for it
     # Create Portainer admin password file and deploy services, capturing output
     # Use ssh_exec for stack deployment, capturing and printing output
     stack_output=$(ssh_exec "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" "
-        cd ~/PISworm || exit 1
+        cd ~/piswarm || exit 1
         echo '[REMOTE] Creating Portainer admin password hash...'
         echo '$portainer_password' | docker run --rm -i portainer/helper-reset-password > admin_password 2>&1
         echo '[REMOTE] Running docker compose up with $compose_file_name (trying V2 first, fallback to V1)...'
@@ -697,7 +697,7 @@ switch_cluster_profile() {
     
     # Redeploy with new configuration
     ssh_exec "$manager_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" "
-        cd ~/PISworm
+        cd ~/piswarm
         if docker compose version >/dev/null 2>&1; then
             docker compose -f docker-compose.adaptive.yml down
             docker compose -f docker-compose.adaptive.yml up -d

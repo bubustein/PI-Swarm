@@ -6,7 +6,7 @@ The PI-Swarm system has been successfully converted from automatic MAC-based dis
 
 ## ✅ Completed Tasks
 
-### 1. Manual IP Discovery System (`functions/discover_pis.sh`)
+### 1. Manual IP Discovery System (`lib/networking/discover_pis.sh`)
 - **Complete rewrite** of discovery system
 - Comma-separated IP input (e.g., "192.168.3.201,192.168.3.202,192.168.3.203")
 - Comprehensive input validation:
@@ -26,7 +26,7 @@ Created missing functions that were called by the main script:
 - Updates package lists and installs essential packages
 - Configures timezone
 - Enables memory cgroup for Docker compatibility
-- Creates PISworm directory structure
+- Creates piswarm directory structure
 - Copies monitoring configuration files
 
 #### `install_docker.sh`
@@ -37,7 +37,7 @@ Created missing functions that were called by the main script:
 - Installs Docker Compose for ARM architecture
 - Comprehensive error handling and verification
 
-### 3. Enhanced SSH Authentication (`functions/ssh_secure.sh`)
+### 3. Enhanced SSH Authentication (`lib/auth/ssh_secure.sh`)
 - **SSH key authentication with password fallback**
 - Automatic SSH key generation and distribution
 - Enhanced `ssh_exec()` function for reliable remote command execution
@@ -45,7 +45,7 @@ Created missing functions that were called by the main script:
 - Timeout handling and connection retry logic
 - Proper error handling for authentication failures
 
-### 4. Configuration Management Improvements (`functions/config_management.sh`)
+### 4. Configuration Management Improvements (`lib/config/config_management.sh`)
 - Enhanced backup system for critical Pi configuration files
 - Automatic restore functionality on failure
 - Validation of device configuration
@@ -57,7 +57,7 @@ Created missing functions that were called by the main script:
 - Added proper variable exports and environment setup
 - Fixed SCRIPT_DIR variable handling in functions
 
-### 6. Enhanced Input Validation and Security (`functions/security.sh`)
+### 6. Enhanced Input Validation and Security (`lib/security/security.sh`)
 - Comprehensive input validation for IPs, usernames, passwords, ports
 - Security checks for file permissions
 - Configuration value parsing with validation
@@ -103,7 +103,7 @@ Ensure your Raspberry Pi devices have:
 ### Running the System
 1. **Navigate to the directory:**
    ```bash
-   cd /home/luser/Downloads/PI-Swarm
+   cd /path/to/PI-Swarm
    ```
 
 2. **Run the main script:**
