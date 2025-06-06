@@ -162,6 +162,35 @@ else
 fi
 echo ""
 
+# DNS configuration prompt
+echo "🌐 DNS CONFIGURATION"
+echo "===================="
+echo "Do you want to set up Pi-hole as a local DNS server?"
+echo "This will provide local hostname resolution and ad-blocking for your cluster."
+echo ""
+echo "Benefits of Pi-hole DNS:"
+echo "• Local hostname resolution (e.g., portainer.cluster.local)"
+echo "• Ad-blocking and privacy protection"
+echo "• Better container networking with DNS names"
+echo "• Centralized DNS management for the cluster"
+echo ""
+read -p "Enable Pi-hole DNS server? (Y/n): " ENABLE_PIHOLE
+ENABLE_PIHOLE=${ENABLE_PIHOLE,,}
+
+if [[ "$ENABLE_PIHOLE" =~ ^(y|yes|)$ ]]; then
+    echo "✅ Pi-hole DNS will be configured on the first Pi"
+    export ENABLE_PIHOLE="true"
+    export PIHOLE_IP="auto"  # Use first Pi
+    export PIHOLE_DOMAIN="cluster.local"
+    export PIHOLE_WEB_PASSWORD="piswarm123"  # Default password
+    echo "   DNS domain: cluster.local"
+    echo "   Admin password: piswarm123 (can be changed later)"
+else
+    echo "⚠️  Pi-hole DNS disabled - using external DNS servers"
+    export ENABLE_PIHOLE="false"
+fi
+echo ""
+
 echo "Please choose a deployment option:"
 echo ""
 echo "1. 🤖 Automated Deployment (Recommended for first-time users)"

@@ -692,7 +692,7 @@ if [[ ${#PI_STATIC_IPS[@]} -gt 0 ]] && [[ "${STORAGE_SOLUTION:-}" != "none" ]] &
             log INFO "  Configuring Docker on $pi_ip..."
             ssh_exec "$pi_ip" "$PI_USER" "$PI_PASS" "
                 # Create Docker storage directory on shared storage
-                sudo mkdir -p '${DOCKER_STORAGE_PATH:-${SHARED_STORAGE_PATH}/docker-volumes}'
+                sudo mkdir -p '${DOCKER_STORAGE_PATH:-${SHARED_STORAGE_PATH}/docker-volumes}}'
                 
                 # Create additional shared directories for common use cases
                 sudo mkdir -p '${SHARED_STORAGE_PATH}/portainer-data'
@@ -746,6 +746,43 @@ if [[ ${#PI_STATIC_IPS[@]} -gt 0 ]] && [[ "${STORAGE_SOLUTION:-}" != "none" ]] &
     fi
 else
     log INFO "Skipping storage setup (no storage solution configured or no nodes available)"
+fi
+
+# Setup Pi-hole DNS server if enabled
+if [[ "${ENABLE_PIHOLE:-false}" == "true" ]] && command -v setup_pihole_dns >/dev/null 2>&1; then
+    log INFO "🌐 Setting up Pi-hole DNS server for the cluster..."
+    
+    # Set up hostnames array for DNS entries
+    declare -a PI_HOSTNAMES
+    for i in "${!PI_STATIC_IPS[@]}"; do
+        PI_HOSTNAMES[$i]="pi-node-$((i+1))"
+    done
+    export PI_HOSTNAMES
+    
+    # Configure Pi-hole DNS with cluster settings
+    export PIHOLE_IP="${PIHOLE_IP:-auto}"  # Use first Pi if not specified
+    export PIHOLE_WEB_PASSWORD="${PIHOLE_WEB_PASSWORD:-piswarm123}"
+    export PIHOLE_DNS_UPSTREAM="${PIHOLE_DNS_UPSTREAM:-1.1.1.1,8.8.8.8}"
+    export PIHOLE_DOMAIN="${PIHOLE_DOMAIN:-cluster.local}"
+    
+    # Call Pi-hole setup function
+    if setup_pihole_dns "${PI_STATIC_IPS[@]}"; then
+        log INFO "✅ Pi-hole DNS server setup completed successfully"
+        
+        # Update environment variables with Pi-hole configuration
+        if [[ -f "$PROJECT_ROOT/data/pihole-config.env" ]]; then
+            source "$PROJECT_ROOT/data/pihole-config.env"
+            log INFO "Pi-hole configuration loaded and available for Docker services"
+        fi
+    else
+        log WARN "Pi-hole DNS setup failed - continuing without DNS server"
+        log WARN "Services will use default DNS resolution"
+    fi
+elif [[ "${ENABLE_PIHOLE:-false}" == "true" ]]; then
+    log WARN "Pi-hole DNS requested but setup function not available"
+    log WARN "Make sure lib/networking/pihole_dns.sh is properly sourced"
+else
+    log INFO "Pi-hole DNS setup skipped (not enabled)"
 fi
 
 # ---- Swarm Setup ----

@@ -34,6 +34,7 @@ source_functions() {
         "networking/pi_discovery.sh"     # Enhanced Pi discovery with network scanning
         "networking/discover_pis.sh"
         "networking/validate_network_config.sh"
+        "networking/pihole_dns.sh"       # Pi-hole DNS server setup and management
         "deployment/setup_pis.sh"
         "deployment/init_swarm.sh"
         "deployment/deploy_services.sh"
