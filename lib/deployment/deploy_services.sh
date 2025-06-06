@@ -1,5 +1,10 @@
 deploy_services() {
     local manager_ip="${PI_STATIC_IPS[0]}"
+    
+    # Set default values for required variables
+    export NODES_DEFAULT_USER="${NODES_DEFAULT_USER:-luser}"
+    export NODES_DEFAULT_PASS="${NODES_DEFAULT_PASS:-}"
+    export PI_SWARM_CONFIG_DIR="${PI_SWARM_CONFIG_DIR:-/home/luser/PI-Swarm/config}"
 
     # If no password is set in environment, prompt for it
     if [[ -z "${PORTAINER_PASSWORD:-}" ]]; then
