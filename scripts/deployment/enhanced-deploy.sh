@@ -375,6 +375,17 @@ while true; do
     esac
 done
 
+# Storage Configuration
+echo ""
+# Source storage management functions
+if [[ -f "$SCRIPT_DIR/lib/storage/storage_management.sh" ]]; then
+    source "$SCRIPT_DIR/lib/storage/storage_management.sh"
+    configure_storage_interactive
+else
+    log WARN "Storage management module not found - skipping storage setup"
+    STORAGE_SOLUTION="skip"
+fi
+
 # Configuration Summary
 echo ""
 echo "📋 Configuration Summary"
@@ -388,6 +399,11 @@ if [[ "$ENABLE_LETSENCRYPT" == "yes" ]]; then
     echo "SSL Domain:       $SSL_DOMAIN"
 fi
 echo "Monitoring:       $ENABLE_MONITORING"
+echo "Storage Solution: ${STORAGE_SOLUTION:-skip}"
+if [[ "${STORAGE_SOLUTION:-skip}" != "skip" ]]; then
+    echo "Storage Device:   ${STORAGE_DEVICE:-auto}"
+    echo "Shared Storage:   ${SHARED_STORAGE_PATH:-/mnt/shared-storage}"
+fi
 if [[ -n "$ALERT_EMAIL" ]]; then
     echo "Email Alerts:     $ALERT_EMAIL"
 fi
@@ -437,6 +453,10 @@ export ENABLE_MONITORING
 export ALERT_EMAIL
 export SLACK_WEBHOOK
 export DISCORD_WEBHOOK
+export STORAGE_SOLUTION
+export STORAGE_DEVICE
+export SHARED_STORAGE_PATH
+export DOCKER_STORAGE_PATH
 
 # Step 3: Run Deployment
 echo ""

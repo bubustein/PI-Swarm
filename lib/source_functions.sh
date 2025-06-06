@@ -39,6 +39,8 @@ source_functions() {
         "deployment/deploy_services.sh"
         "deployment/deployment_summary.sh"
         "security/ssl_automation.sh"
+        "storage/storage_management.sh"  # Storage configuration management
+        "storage/glusterfs_setup.sh"     # GlusterFS distributed storage
         "config/get_config_value.sh" # Add get_config_value to essential functions
         "auth/ssh_secure.sh" # Add ssh_exec and setup_ssh_keys to essential functions
         "monitoring/service_status.sh" # Add service_status.sh to essential functions for deploy_services

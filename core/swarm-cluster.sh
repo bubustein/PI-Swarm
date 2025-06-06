@@ -664,6 +664,90 @@ for PI_IP in "${PI_STATIC_IPS[@]}"; do
     log INFO "✅ Configured: $PI_IP"
 done
 
+# ---- Storage Setup ----
+if [[ ${#PI_STATIC_IPS[@]} -gt 0 ]] && [[ "${STORAGE_SOLUTION:-}" != "none" ]] && [[ "${STORAGE_SOLUTION:-}" != "" ]]; then
+    log INFO "🗄️  Setting up shared storage solution: ${STORAGE_SOLUTION:-glusterfs}"
+    
+    # Setup cluster storage before Docker Swarm initialization
+    if command -v setup_cluster_storage >/dev/null 2>&1; then
+        setup_cluster_storage "${PI_STATIC_IPS[@]}" || { 
+            log WARN "Storage setup failed, continuing without shared storage" 
+            log WARN "Docker volumes will use local storage on each node"
+        }
+        
+        # Load storage configuration if it was created
+        if [[ -f "$PROJECT_ROOT/data/storage-config.env" ]]; then
+            source "$PROJECT_ROOT/data/storage-config.env"
+            log INFO "Loaded storage configuration: $STORAGE_SOLUTION"
+        fi
+    else
+        log WARN "Storage management functions not available"
+        log INFO "Skipping shared storage setup - using local storage"
+    fi
+    
+    # Configure Docker to use shared storage paths if available
+    if [[ -n "${SHARED_STORAGE_PATH:-}" ]] && [[ -d "${SHARED_STORAGE_PATH:-}" ]]; then
+        log INFO "Configuring Docker to use shared storage: ${SHARED_STORAGE_PATH}"
+        for pi_ip in "${PI_STATIC_IPS[@]}"; do
+            log INFO "  Configuring Docker on $pi_ip..."
+            ssh_exec "$pi_ip" "$PI_USER" "$PI_PASS" "
+                # Create Docker storage directory on shared storage
+                sudo mkdir -p '${DOCKER_STORAGE_PATH:-${SHARED_STORAGE_PATH}/docker-volumes}'
+                
+                # Create additional shared directories for common use cases
+                sudo mkdir -p '${SHARED_STORAGE_PATH}/portainer-data'
+                sudo mkdir -p '${SHARED_STORAGE_PATH}/grafana-data'
+                sudo mkdir -p '${SHARED_STORAGE_PATH}/prometheus-data'
+                sudo mkdir -p '${SHARED_STORAGE_PATH}/app-data'
+                
+                # Set proper permissions
+                sudo chmod 755 '${SHARED_STORAGE_PATH}'/{docker-volumes,portainer-data,grafana-data,prometheus-data,app-data}
+                
+                # Backup existing Docker configuration
+                if [[ -f /etc/docker/daemon.json ]]; then
+                    sudo cp /etc/docker/daemon.json /etc/docker/daemon.json.backup-\$(date +%Y%m%d)
+                fi
+                
+                # Create optimized Docker daemon configuration
+                echo '{
+                    \"storage-driver\": \"overlay2\",
+                    \"log-driver\": \"json-file\",
+                    \"log-opts\": {
+                        \"max-size\": \"10m\",
+                        \"max-file\": \"3\"
+                    },
+                    \"live-restore\": true,
+                    \"userland-proxy\": false,
+                    \"experimental\": false
+                }' | sudo tee /etc/docker/daemon.json >/dev/null
+                
+                # Restart Docker to apply new configuration
+                sudo systemctl restart docker
+                
+                # Wait for Docker to be ready
+                timeout=30
+                counter=0
+                while ! docker info >/dev/null 2>&1; do
+                    if [ \$counter -ge \$timeout ]; then
+                        echo 'Timeout waiting for Docker to start'
+                        exit 1
+                    fi
+                    sleep 1
+                    counter=\$((counter + 1))
+                done
+                
+                echo '✅ Docker configured successfully on $pi_ip'
+            " || log WARN "Failed to configure Docker storage on $pi_ip"
+        done
+        
+        log INFO "✅ Docker configured to use shared storage on all nodes"
+    else
+        log INFO "No shared storage available - Docker will use default local storage"
+    fi
+else
+    log INFO "Skipping storage setup (no storage solution configured or no nodes available)"
+fi
+
 # ---- Swarm Setup ----
 if [[ ${#PI_STATIC_IPS[@]} -gt 0 ]]; then
     init_swarm || { log ERROR "Swarm init failed"; exit 1; }
