@@ -1,12 +1,29 @@
 # functions/ssh_auth.sh
 
-# pi_ssh_check <host> <user> <pass>
-# Returns 0 on success, 1 on auth failure, 2 on connection failure
+# Enhanced SSH check that can use Python SSH manager or fallback to sshpass
 pi_ssh_check() {
     local host="$1"
     local user="$2"
     local pass="$3"
 
+    # Try using Python SSH manager first if available
+    if [[ -f "$PROJECT_ROOT/lib/python/ssh_manager.py" ]] && command -v python3 >/dev/null 2>&1; then
+        if python3 "$PROJECT_ROOT/lib/python/ssh_manager.py" test-connection \
+            --host "$host" --username "$user" --password "$pass" \
+            --timeout 5 >/dev/null 2>&1; then
+            return 0  # Success
+        else
+            # Check the specific exit code from Python manager
+            local py_status=$?
+            if [[ $py_status -eq 1 ]]; then
+                return 1  # Auth failure
+            else
+                return 2  # Connection failure
+            fi
+        fi
+    fi
+
+    # Fallback to sshpass
     sshpass -p "$pass" ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 "$user@$host" "exit" >/dev/null 2>&1
     local status=$?
     if [[ $status -eq 0 ]]; then

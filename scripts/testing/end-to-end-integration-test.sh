@@ -77,6 +77,19 @@ cd "$PROJECT_ROOT"
 run_test "Storage functions can be loaded" "source lib/storage/storage_management.sh && type setup_cluster_storage >/dev/null 2>&1"
 run_test "Pi-hole functions can be loaded" "source lib/networking/pihole_dns.sh && type setup_pihole_dns >/dev/null 2>&1"
 
+# Test enhanced Python modules if available
+if [[ -f "$PROJECT_ROOT/lib/python_integration.sh" ]]; then
+    echo "Testing enhanced Python integration..."
+    source "$PROJECT_ROOT/lib/python_integration.sh"
+    run_test "Python integration functions load" "type test_python_integration >/dev/null 2>&1"
+    run_test "Enhanced monitoring functions available" "type monitor_cluster_comprehensive >/dev/null 2>&1"
+    run_test "Enhanced storage functions available" "type manage_storage_comprehensive >/dev/null 2>&1"
+    run_test "Enhanced security functions available" "type manage_security_comprehensive >/dev/null 2>&1"
+    run_test "Python integration test passes" "test_python_integration >/dev/null 2>&1"
+else
+    echo "Enhanced Python integration not available - using standard functions only"
+fi
+
 # Test 4: Check integration points
 echo -e "${YELLOW}Phase 3: Integration Point Validation${NC}"
 echo "-------------------------------------"

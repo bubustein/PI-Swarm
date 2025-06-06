@@ -26,6 +26,7 @@ source_functions() {
 
     set +e  # Disable exit on error during sourcing
     declare -a essential_functions=(
+        "system/directory_setup.sh"     # Directory structure management
         "config/validate_environment.sh"
         "auth/prompt_user.sh"  # Ensure validate_input is always loaded
         "acquire_lock.sh"

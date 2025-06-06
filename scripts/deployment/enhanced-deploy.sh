@@ -24,6 +24,18 @@ cd "$SCRIPT_DIR"
 source lib/source_functions.sh
 source_functions
 
+# Source Python integration functions if available
+if [[ -f "lib/python_integration.sh" ]]; then
+    source lib/python_integration.sh
+    echo "🐍 Enhanced Python modules loaded"
+    PYTHON_ENHANCED=true
+    
+    # Test Python integration capabilities
+    test_python_integration
+else
+    PYTHON_ENHANCED=false
+fi
+
 # Initialize variables to prevent unbound variable errors
 ALERT_EMAIL=""
 SLACK_WEBHOOK=""
@@ -507,20 +519,43 @@ if [[ "$RUN_VALIDATION" == "true" ]]; then
         IFS=' ' read -ra pi_array <<< "$PI_IPS"
         
         # Run validation with proper username
+        export USERNAME="$USERNAME"
         export USER="$USERNAME"
-        if validate_and_prepare_pi_state "${pi_array[@]}"; then
-            echo ""
-            echo "✅ Pre-deployment validation completed successfully!"
-            echo "   Your Pis are ready for optimal deployment."
+        
+        # Use enhanced validation if Python modules are available
+        if [[ "$PYTHON_ENHANCED" == "true" ]]; then
+            echo "🐍 Using enhanced Python-based validation..."
+            if validate_and_prepare_pi_state_enhanced "${pi_array[@]}"; then
+                echo ""
+                echo "✅ Enhanced pre-deployment validation completed successfully!"
+                echo "   Your Pis are ready for optimal deployment with Python enhancements."
+            else
+                echo ""
+                echo "❌ Enhanced pre-deployment validation failed!"
+                echo "   Please address the issues above before proceeding."
+                read -p "Continue anyway? (y/N): " force_continue
+                force_continue=${force_continue:-N}
+                if [[ ! "${force_continue,,}" =~ ^(y|yes)$ ]]; then
+                    echo "Deployment cancelled due to validation failures."
+                    exit 1
+                fi
+            fi
         else
-            echo ""
-            echo "❌ Pre-deployment validation failed!"
-            echo "   Please address the issues above before proceeding."
-            read -p "Continue anyway? (y/N): " force_continue
-            force_continue=${force_continue:-N}
-            if [[ ! "${force_continue,,}" =~ ^(y|yes)$ ]]; then
-                echo "Deployment cancelled due to validation failures."
-                exit 1
+            echo "🔧 Using standard validation..."
+            if validate_and_prepare_pi_state "${pi_array[@]}"; then
+                echo ""
+                echo "✅ Pre-deployment validation completed successfully!"
+                echo "   Your Pis are ready for optimal deployment."
+            else
+                echo ""
+                echo "❌ Pre-deployment validation failed!"
+                echo "   Please address the issues above before proceeding."
+                read -p "Continue anyway? (y/N): " force_continue
+                force_continue=${force_continue:-N}
+                if [[ ! "${force_continue,,}" =~ ^(y|yes)$ ]]; then
+                    echo "Deployment cancelled due to validation failures."
+                    exit 1
+                fi
             fi
         fi
     else

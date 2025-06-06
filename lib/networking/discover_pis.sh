@@ -7,7 +7,36 @@ source "${SCRIPT_DIR}/lib/networking/pi_discovery.sh" 2>/dev/null || {
 }
 
 discover_pis() {
-    # Try enhanced discovery first, fall back to basic if not available
+    # Try Python network discovery first if available
+    if [[ -f "$SCRIPT_DIR/lib/python/network_discovery.py" ]] && command -v python3 >/dev/null 2>&1; then
+        log INFO "🐍 Using Python network discovery for enhanced Pi detection..."
+        
+        local offline_flag=""
+        if [[ "${OFFLINE_MODE:-false}" == "true" || "${SKIP_NETWORK_CHECK:-false}" == "true" ]]; then
+            offline_flag="--offline"
+        fi
+        
+        # Run Python discovery and capture output
+        local discovery_output
+        if discovery_output=$(python3 "$SCRIPT_DIR/lib/python/network_discovery.py" discover --format bash $offline_flag 2>/dev/null); then
+            # Parse Python discovery output
+            eval "$discovery_output"
+            
+            if [[ -n "${PI_IPS:-}" ]] && [[ "${PI_COUNT:-0}" -gt 0 ]]; then
+                log INFO "Python discovery found $PI_COUNT Pi device(s): $PI_IPS"
+                export PI_IPS
+                export PI_HOSTNAMES
+                export PI_COUNT
+                return 0
+            else
+                log WARN "Python discovery found no Pi devices, falling back to enhanced discovery"
+            fi
+        else
+            log WARN "Python discovery failed, falling back to enhanced discovery"
+        fi
+    fi
+    
+    # Try enhanced discovery next, fall back to basic if not available
     if command -v discover_and_scan_pis >/dev/null 2>&1; then
         log INFO "🔍 Starting enhanced Pi discovery with network scanning..."
         discover_and_scan_pis

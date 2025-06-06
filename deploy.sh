@@ -5,6 +5,98 @@
 
 set -euo pipefail
 
+# ---- Command Line Arguments ----
+# Parse command line arguments for offline mode and other options
+OFFLINE_MODE=false
+SKIP_NETWORK_CHECK=false
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --offline)
+            OFFLINE_MODE=true
+            SKIP_NETWORK_CHECK=true
+            echo "🔌 Offline mode enabled - network checks will be skipped"
+            shift
+            ;;
+        --skip-network-check)
+            SKIP_NETWORK_CHECK=true
+            echo "🌐 Network connectivity checks will be skipped"
+            shift
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            set -x
+            echo "🔍 Verbose mode enabled"
+            shift
+            ;;
+        --help|-h)
+            echo "Pi-Swarm Deployment Script"
+            echo ""
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --offline              Enable offline mode (skips all network checks)"
+            echo "  --skip-network-check   Skip network connectivity checks only"
+            echo "  --verbose, -v          Enable verbose output"
+            echo "  --help, -h             Show this help message"
+            echo ""
+            echo "Environment Variables:"
+            echo "  OFFLINE_MODE=true      Same as --offline"
+            echo "  SKIP_NETWORK_CHECK=true Same as --skip-network-check"
+            echo ""
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Export environment variables for child scripts
+export OFFLINE_MODE
+export SKIP_NETWORK_CHECK
+export VERBOSE
+
+# ---- Directory Structure Setup ----
+echo "📁 Setting up project directories..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source Python integration helper
+if [[ -f "$SCRIPT_DIR/lib/python_integration.sh" ]]; then
+    source "$SCRIPT_DIR/lib/python_integration.sh"
+    
+    # Test Python integration capabilities
+    test_python_integration
+    
+    # Use enhanced directory setup
+    if setup_directories_enhanced "$SCRIPT_DIR"; then
+        echo "✅ Enhanced directory setup completed"
+    else
+        echo "⚠️  Directory setup completed with fallbacks"
+    fi
+    
+    # Run comprehensive system health check before deployment
+    echo "🔍 Performing comprehensive system health check..."
+    if health_check_comprehensive; then
+        echo "✅ System health check passed"
+    else
+        echo "⚠️  System health check completed with warnings"
+    fi
+else
+    # Fallback to original logic
+    if [[ -f "$SCRIPT_DIR/lib/system/directory_setup.sh" ]]; then
+        source "$SCRIPT_DIR/lib/system/directory_setup.sh"
+        setup_project_directories "$SCRIPT_DIR"
+    else
+        mkdir -p data/{logs,backups,configs,ssl,monitoring,storage,cache}
+        mkdir -p temp/{downloads,extraction}
+        echo "✅ Created essential directories"
+    fi
+fi
+
 # ---- Prerequisites Installation ----
 echo "🔧 Checking and installing prerequisites..."
 
@@ -48,29 +140,42 @@ fi
 
 # Install missing tools
 if (( ${#missing_tools[@]} > 0 )); then
-    echo "Missing tools detected: ${missing_tools[*]}"
-    echo "Installing prerequisites..."
-    
-    # First, install basic tools via apt (including curl which is needed for Docker)
-    APT_TOOLS=()
-    SPECIAL_TOOLS=()
-    for t in "${missing_tools[@]}"; do
-        case "$t" in
-            docker|yq)
-                SPECIAL_TOOLS+=("$t")
-                ;;
-            *)
-                APT_TOOLS+=("$t")
-                ;;
-        esac
-    done
+    if [[ "$OFFLINE_MODE" == "true" ]]; then
+        echo "⚠️  Missing tools detected but offline mode is enabled: ${missing_tools[*]}"
+        echo "Please install these tools manually or run without --offline flag"
+        echo "Required tools: ${missing_tools[*]}"
+        echo ""
+        echo "Some tests may fail without these tools installed."
+        read -p "Continue anyway? (y/N): " continue_offline
+        if [[ ! "$continue_offline" =~ ^[Yy]$ ]]; then
+            echo "Exiting. Install missing tools or run without --offline flag."
+            exit 1
+        fi
+    else
+        echo "Missing tools detected: ${missing_tools[*]}"
+        echo "Installing prerequisites..."
+        
+        # First, install basic tools via apt (including curl which is needed for Docker)
+        APT_TOOLS=()
+        SPECIAL_TOOLS=()
+        for t in "${missing_tools[@]}"; do
+            case "$t" in
+                docker|yq)
+                    SPECIAL_TOOLS+=("$t")
+                    ;;
+                *)
+                    APT_TOOLS+=("$t")
+                    ;;
+            esac
+        done
 
-    # Install apt packages first
-    if (( ${#APT_TOOLS[@]} > 0 )); then
-        echo "Updating package lists..."
-        $SUDO apt-get update
-        echo "Installing: ${APT_TOOLS[*]}"
-        $SUDO apt-get install -y "${APT_TOOLS[@]}"
+        # Install apt packages first
+        if (( ${#APT_TOOLS[@]} > 0 )); then
+            echo "Updating package lists..."
+            $SUDO apt-get update
+            echo "Installing: ${APT_TOOLS[*]}"
+            $SUDO apt-get install -y "${APT_TOOLS[@]}"
+        fi
     fi
     
     # Then install special tools that require curl or other dependencies

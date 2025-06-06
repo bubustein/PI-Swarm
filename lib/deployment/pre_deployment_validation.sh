@@ -2,6 +2,61 @@
 # Pre-deployment validation and Pi state preparation
 # Ensures Raspberry Pis are in optimal state before Docker Swarm deployment
 
+# Source Python integration functions if available
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+if [[ -f "$PROJECT_ROOT/lib/python_integration.sh" ]]; then
+    source "$PROJECT_ROOT/lib/python_integration.sh"
+    PYTHON_ENHANCED=true
+else
+    PYTHON_ENHANCED=false
+fi
+
+# Enhanced validation function that uses Python modules when available
+validate_and_prepare_pi_state_enhanced() {
+    local pi_ips=("$@")
+    
+    if [[ "$PYTHON_ENHANCED" == "true" ]]; then
+        echo "🔧 Using enhanced Python-based validation and preparation..."
+        
+        # Use comprehensive monitoring and health checks
+        if health_check_comprehensive; then
+            echo "✅ Comprehensive health check passed"
+        else
+            echo "⚠️  Health check completed with warnings"
+        fi
+        
+        # Use enhanced storage management for validation
+        if manage_storage_comprehensive validate; then
+            echo "✅ Storage validation passed"
+        else
+            echo "⚠️  Storage validation completed with warnings"
+        fi
+        
+        # Use enhanced security management for validation
+        if manage_security_comprehensive audit; then
+            echo "✅ Security audit passed"
+        else
+            echo "⚠️  Security audit completed with warnings"
+        fi
+        
+        # Use enhanced monitoring for cluster performance
+        if optimize_cluster_performance validate; then
+            echo "✅ Performance optimization checks passed"
+        else
+            echo "⚠️  Performance checks completed with warnings"
+        fi
+        
+        # Fall back to standard validation for Pi-specific checks
+        echo "🔍 Running Pi-specific validation checks..."
+        validate_and_prepare_pi_state "${pi_ips[@]}"
+    else
+        echo "🔍 Using standard validation (Python modules not available)..."
+        validate_and_prepare_pi_state "${pi_ips[@]}"
+    fi
+}
+
 # Check and prepare Pi state for deployment
 validate_and_prepare_pi_state() {
     local pi_ips=("$@")
@@ -399,6 +454,7 @@ validate_network_requirements() {
 
 # Export functions
 export -f validate_and_prepare_pi_state
+export -f validate_and_prepare_pi_state_enhanced
 export -f cleanup_pi_disk_space
 export -f cleanup_existing_swarm
 export -f validate_network_requirements

@@ -37,9 +37,15 @@ if ! python3 -c 'import sys; assert sys.version_info.major >= 3' 2>/dev/null; th
     echo "Python 3 is required." && exit 1
 fi
 
-# Network connectivity check
-if ! ping -c1 8.8.8.8 >/dev/null 2>&1 && ! ping -c1 1.1.1.1 >/dev/null 2>&1; then
-    echo "No internet/network connectivity detected." && exit 1
+# Network connectivity check (can be skipped for offline testing)
+if [[ "${SKIP_NETWORK_CHECK:-false}" != "true" ]] && [[ "${OFFLINE_MODE:-false}" != "true" ]]; then
+    if ! ping -c1 8.8.8.8 >/dev/null 2>&1 && ! ping -c1 1.1.1.1 >/dev/null 2>&1; then
+        echo "No internet/network connectivity detected."
+        echo "To run in offline mode, set OFFLINE_MODE=true or SKIP_NETWORK_CHECK=true"
+        exit 1
+    fi
+else
+    echo "⚠️  Network connectivity check skipped (offline mode enabled)"
 fi
 
 # Check for sudo availability (but don't require root)
