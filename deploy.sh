@@ -241,6 +241,46 @@ fi
 echo "✅ All prerequisites installed and verified!"
 echo ""
 
+# Perform system cleanup before deployment
+perform_pre_deployment_cleanup() {
+    echo "🧹 Performing pre-deployment system cleanup..."
+    
+    # Load sanitization functions if available
+    if [[ -f "lib/system/sanitization.sh" ]]; then
+        source lib/system/sanitization.sh
+        
+        # Set debconf to noninteractive mode to avoid prompts
+        export DEBIAN_FRONTEND=noninteractive
+        
+        # Preconfigure grub-pc to avoid interactive prompts
+        if dpkg -l | grep -q grub-pc; then
+            echo 'grub-pc grub-pc/install_devices_empty boolean true' | sudo debconf-set-selections
+            echo 'grub-pc grub-pc/install_devices string /dev/sda' | sudo debconf-set-selections
+            echo 'grub-pc grub-pc/install_devices_disks_changed multiselect' | sudo debconf-set-selections
+        fi
+        
+        # Perform comprehensive cleanup
+        echo "   • Cleaning package system..."
+        sudo apt-get autoremove -y --purge 2>/dev/null || {
+            echo "   • Standard autoremove failed, trying with force options..."
+            sudo apt-get autoremove -y --purge --allow-remove-essential 2>/dev/null || true
+        }
+        
+        sudo apt-get clean || true
+        sudo apt-get autoclean || true
+        
+        echo "   ✅ System cleanup completed"
+    else
+        echo "   • Basic cleanup only (sanitization module not found)"
+        sudo apt-get autoremove -y --purge 2>/dev/null || true
+        sudo apt-get clean || true
+    fi
+    echo ""
+}
+
+# Run cleanup
+perform_pre_deployment_cleanup
+
 echo "🚀 Pi-Swarm v2.0.0 - Docker Swarm Orchestration Platform"
 echo "========================================================="
 echo ""

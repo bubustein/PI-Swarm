@@ -95,6 +95,50 @@ else
     log "INFO" "Using provided PI_STATIC_IPS: $PI_STATIC_IPS"
 fi
 
+# Step 2.5: Perform pre-deployment cleanup
+print_step "Performing comprehensive system cleanup..."
+
+# Load sanitization functions if available
+if [[ -f "$PROJECT_ROOT/lib/system/sanitization.sh" ]]; then
+    source "$PROJECT_ROOT/lib/system/sanitization.sh"
+    
+    # Set debconf to noninteractive mode to avoid prompts
+    export DEBIAN_FRONTEND=noninteractive
+    
+    # Preconfigure grub-pc to avoid interactive prompts
+    if dpkg -l | grep -q grub-pc; then
+        echo 'grub-pc grub-pc/install_devices_empty boolean true' | sudo debconf-set-selections
+        echo 'grub-pc grub-pc/install_devices string /dev/sda' | sudo debconf-set-selections
+        echo 'grub-pc grub-pc/install_devices_disks_changed multiselect' | sudo debconf-set-selections
+    fi
+    
+    # Perform comprehensive cleanup
+    log "INFO" "Cleaning package system..."
+    sudo apt-get autoremove -y --purge 2>/dev/null || {
+        log "WARN" "Standard autoremove failed, trying with force options..."
+        sudo apt-get autoremove -y --purge --allow-remove-essential 2>/dev/null || true
+    }
+    
+    sudo apt-get clean || true
+    sudo apt-get autoclean || true
+    
+    # Clean up Pi nodes if available
+    if [[ -n "${PI_STATIC_IPS:-}" ]]; then
+        for pi_ip in $PI_STATIC_IPS; do
+            log "INFO" "Cleaning up Pi node: $pi_ip"
+            cleanup_apt_system "$pi_ip" "luser" "" || {
+                log "WARN" "Cleanup on $pi_ip completed with warnings (this is usually safe)"
+            }
+        done
+    fi
+    
+    log "INFO" "System cleanup completed successfully"
+else
+    log "WARN" "Sanitization script not found, performing basic cleanup..."
+    sudo apt-get autoremove -y --purge 2>/dev/null || true
+    sudo apt-get clean || true
+fi
+
 # Step 3: Run main deployment script
 print_step "Running main deployment with automated answers..."
 

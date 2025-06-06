@@ -2,28 +2,30 @@
 # System Sanitization and Cleaning Module
 # Provides comprehensive system cleaning and sanitization before deployment
 
-# Fallback log function if not already defined
-if ! command -v log >/dev/null 2>&1; then
+# Basic logging function if not already defined
+if ! type log >/dev/null 2>&1; then
     log() {
         local level="$1"
-        local message="$2"
+        shift
+        local message="$*"
         local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
         echo "${timestamp} [${level}] ${message}"
     }
 fi
 
-# Fallback ssh_exec function if not already defined
-if ! command -v ssh_exec >/dev/null 2>&1; then
+# Basic SSH execution function if not already defined
+if ! type ssh_exec >/dev/null 2>&1; then
     ssh_exec() {
         local host="$1"
         local user="$2"
         local pass="$3"
-        local command="$4"
+        shift 3
+        local command="$*"
         
         if [[ -n "$pass" ]]; then
             sshpass -p "$pass" ssh -o StrictHostKeyChecking=no "$user@$host" "$command"
         else
-            ssh -o StrictHostKeyChecking=no "$user@$host" "$command"
+            ssh -o BatchMode=yes "$user@$host" "$command"
         fi
     }
 fi
@@ -65,10 +67,9 @@ sanitize_minimal() {
     
     log INFO "📦 Performing minimal sanitization on $host..."
     
-    # Use the comprehensive apt cleanup
+    # Use comprehensive APT cleanup
     cleanup_apt_system "$host" "$user" "$pass"
-    
-    ssh_exec "$host" "$user" "$pass" "
+        
         # Clear temporary files
         sudo find /tmp -type f -atime +1 -delete 2>/dev/null || true
         sudo find /var/tmp -type f -atime +1 -delete 2>/dev/null || true
@@ -86,7 +87,7 @@ sanitize_standard() {
     
     log INFO "🔧 Performing standard sanitization on $host..."
     
-    # Use the comprehensive apt cleanup first
+    # Use comprehensive APT cleanup
     cleanup_apt_system "$host" "$user" "$pass"
     
     ssh_exec "$host" "$user" "$pass" "
@@ -138,26 +139,62 @@ sanitize_thorough() {
     
     log INFO "🔥 Performing thorough sanitization on $host..."
     
-    ssh_exec "$host" "$user" "$pass" "
-        echo '=== THOROUGH SANITIZATION START ==='
+    ssh_exec "$host" "$user" "$pass" '
+        echo "=== THOROUGH SANITIZATION START ==="
         
-        # First run standard sanitization
-        $(declare -f sanitize_standard_remote)
-        sanitize_standard_remote
+        # Comprehensive apt cleanup first
+        echo "Running comprehensive apt cleanup..."
+        export DEBIAN_FRONTEND=noninteractive
+        sudo -E apt-get -y -q autoremove 2>/dev/null || true
+        sudo -E apt-get -y -q autoclean 2>/dev/null || true
+        sudo -E apt-get -y -q clean 2>/dev/null || true
+        sudo dpkg --configure -a 2>/dev/null || true
+        
+        # Standard cleanup operations
+        echo "Running standard cleanup operations..."
+        
+        # Clear package cache
+        sudo rm -rf /var/cache/apt/archives/*.deb 2>/dev/null || true
+        sudo rm -rf /var/lib/apt/lists/* 2>/dev/null || true
+        sudo apt-get update -qq 2>/dev/null || true
+        
+        # Clean temporary files
+        sudo rm -rf /tmp/* 2>/dev/null || true
+        sudo rm -rf /var/tmp/* 2>/dev/null || true
+        
+        # Clean old cache files
+        sudo find /var/cache -type f -atime +7 -delete 2>/dev/null || true
+        
+        # Log cleanup (keep last 7 days)
+        echo "Cleaning system logs..."
+        sudo journalctl --vacuum-time=7d 2>/dev/null || true
+        sudo find /var/log -type f -name "*.log" -mtime +7 -delete 2>/dev/null || true
+        sudo find /var/log -type f -name "*.gz" -mtime +7 -delete 2>/dev/null || true
+        
+        # Clean user caches
+        echo "Cleaning user caches..."
+        rm -rf ~/.cache/* 2>/dev/null || true
+        rm -rf ~/.thumbnails/* 2>/dev/null || true
+        
+        # Docker cleanup (if installed)
+        if command -v docker >/dev/null 2>&1; then
+            echo "Cleaning Docker resources..."
+            sudo docker system prune -f 2>/dev/null || true
+            sudo docker volume prune -f 2>/dev/null || true
+            sudo docker network prune -f 2>/dev/null || true
+        fi
         
         # Additional thorough cleanup
-        echo 'Performing additional cleanup...'
+        echo "Performing additional thorough cleanup..."
         
         # Remove old kernels (keep current + 1 previous)
         if command -v apt-get >/dev/null 2>&1; then
-            echo 'Removing old kernels...'
-            sudo apt-get autoremove --purge -y
-            current_kernel=\$(uname -r | sed 's/-generic//')
-            sudo apt-get remove --purge -y \$(dpkg -l | grep 'linux-image-[0-9]' | grep -v \$current_kernel | awk '{print \$2}' | head -5) 2>/dev/null || true
+            echo "Removing old kernels..."
+            sudo apt-get autoremove --purge -y 2>/dev/null || true
         fi
         
         # Deep log cleanup
-        echo 'Deep log cleanup...'
+        echo "Deep log cleanup..."
         sudo find /var/log -type f -exec truncate -s 0 {} \; 2>/dev/null || true
         sudo journalctl --vacuum-size=10M 2>/dev/null || true
         
@@ -165,7 +202,7 @@ sanitize_thorough() {
         sudo rm -rf /var/log/journal/*/* 2>/dev/null || true
         
         # Remove crash dumps
-        echo 'Removing crash dumps...'
+        echo "Removing crash dumps..."
         sudo rm -rf /var/crash/* 2>/dev/null || true
         sudo rm -rf /var/lib/systemd/coredump/* 2>/dev/null || true
         
@@ -174,24 +211,24 @@ sanitize_thorough() {
         rm -rf ~/.cache/chromium 2>/dev/null || true
         
         # Clear Python caches
-        find /home -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
-        find /home -name '*.pyc' -delete 2>/dev/null || true
+        find /home -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+        find /home -name "*.pyc" -delete 2>/dev/null || true
         
         # Clear thumbnail caches
         rm -rf ~/.thumbnails 2>/dev/null || true
         rm -rf ~/.cache/thumbnails 2>/dev/null || true
         
         # Remove rotated logs
-        sudo find /var/log -name '*.1' -delete 2>/dev/null || true
-        sudo find /var/log -name '*.old' -delete 2>/dev/null || true
+        sudo find /var/log -name "*.1" -delete 2>/dev/null || true
+        sudo find /var/log -name "*.old" -delete 2>/dev/null || true
         
         # Memory cleanup
-        echo 'Clearing memory caches...'
+        echo "Clearing memory caches..."
         sudo sync
         echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null 2>&1 || true
         
-        echo '=== THOROUGH SANITIZATION COMPLETE ==='
-    " && log INFO "✅ Thorough sanitization completed on $host"
+        echo "=== THOROUGH SANITIZATION COMPLETE ==="
+    ' && log INFO "✅ Thorough sanitization completed on $host"
 }
 
 # Complete sanitization - maximum cleanup (use with caution)
@@ -203,39 +240,58 @@ sanitize_complete() {
     log WARN "💀 Performing COMPLETE sanitization on $host - this is irreversible!"
     echo "⚠️  DANGER: Complete sanitization will remove ALL user data, logs, and caches."
     echo "   This operation is irreversible and should only be used on fresh systems."
-    read -p "Are you absolutely sure you want to proceed? (type 'YES' to confirm): " confirm
+    read -p "Are you absolutely sure you want to proceed? (type YES to confirm): " confirm
     
     if [[ "$confirm" != "YES" ]]; then
         log INFO "Complete sanitization cancelled by user"
         return 0
     fi
     
-    ssh_exec "$host" "$user" "$pass" "
-        echo '=== COMPLETE SANITIZATION START ==='
-        echo 'WARNING: This will remove ALL user data and system caches!'
+    ssh_exec "$host" "$user" "$pass" '
+        echo "=== COMPLETE SANITIZATION START ==="
+        echo "WARNING: This will remove ALL user data and system caches!"
         
-        # First run thorough sanitization
-        $(declare -f sanitize_thorough_remote)
-        sanitize_thorough_remote
+        # First run thorough cleanup
+        echo "Running thorough cleanup..."
+        
+        # Comprehensive apt cleanup
+        echo "Comprehensive apt system cleanup..."
+        export DEBIAN_FRONTEND=noninteractive
+        sudo -E apt-get -y -q autoremove 2>/dev/null || true
+        sudo -E apt-get -y -q autoclean 2>/dev/null || true
+        sudo -E apt-get -y -q clean 2>/dev/null || true
+        sudo dpkg --configure -a 2>/dev/null || true
+        
+        # Clear all package caches
+        sudo rm -rf /var/cache/apt/* 2>/dev/null || true
+        sudo rm -rf /var/lib/apt/lists/* 2>/dev/null || true
+        
+        # Comprehensive log cleanup
+        echo "Comprehensive log cleanup..."
+        sudo journalctl --vacuum-time=1d 2>/dev/null || true
+        sudo find /var/log -type f -name "*.log*" -delete 2>/dev/null || true
+        sudo find /var/log -type f -name "*.gz" -delete 2>/dev/null || true
+        sudo find /var/log -name "*.1" -delete 2>/dev/null || true
+        sudo find /var/log -name "*.old" -delete 2>/dev/null || true
         
         # Nuclear cleanup - removes everything possible
-        echo 'Performing nuclear cleanup...'
+        echo "Performing nuclear cleanup..."
         
         # Remove all user data in /home (except current user)
         for home_dir in /home/*; do
-            if [ \"\$(basename \$home_dir)\" != \"$user\" ]; then
-                echo \"Removing \$home_dir...\"
-                sudo rm -rf \$home_dir 2>/dev/null || true
+            if [ "$(basename "$home_dir")" != "'"$user"'" ]; then
+                echo "Removing $home_dir..."
+                sudo rm -rf "$home_dir" 2>/dev/null || true
             fi
         done
         
         # Clear current user data (preserve essential config)
-        echo 'Clearing current user data...'
+        echo "Clearing current user data..."
         cd ~
-        ls -la | grep -v '^\\.ssh\$' | grep -v '^\\.profile\$' | grep -v '^\\.bashrc\$' | grep -v '^\\.bash_history\$' | awk '{print \$9}' | grep '^\\.' | xargs rm -rf 2>/dev/null || true
+        find . -maxdepth 1 -name ".*" ! -name ".ssh" ! -name ".profile" ! -name ".bashrc" ! -name ".bash_history" -exec rm -rf {} + 2>/dev/null || true
         
         # Remove all logs completely
-        echo 'Removing all logs...'
+        echo "Removing all logs..."
         sudo find /var/log -type f -delete 2>/dev/null || true
         sudo rm -rf /var/log/* 2>/dev/null || true
         
@@ -258,7 +314,7 @@ sanitize_complete() {
         sudo rm -rf /var/lib/cache/* 2>/dev/null || true
         
         # Reset network configuration to defaults
-        echo 'Resetting network state...'
+        echo "Resetting network state..."
         sudo rm -rf /var/lib/NetworkManager/* 2>/dev/null || true
         
         # Clear command history completely
@@ -270,9 +326,9 @@ sanitize_complete() {
         sudo sync
         echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null 2>&1 || true
         
-        echo '=== COMPLETE SANITIZATION FINISHED ==='
-        echo 'System has been completely sanitized. Reboot recommended.'
-    " && log INFO "✅ Complete sanitization finished on $host"
+        echo "=== COMPLETE SANITIZATION FINISHED ==="
+        echo "System has been completely sanitized. Reboot recommended."
+    ' && log INFO "✅ Complete sanitization finished on $host"
     
     log WARN "🔄 REBOOT RECOMMENDED for $host after complete sanitization"
 }
@@ -391,48 +447,43 @@ generate_sanitization_report() {
     "
 }
 
-# Helper function for remote execution of sanitization functions
-sanitize_standard_remote() {
-    # Standard sanitization logic here (same as above but for remote execution)
-    echo 'Running standard sanitization remotely...'
-    # Implementation would be the same as sanitize_standard but without ssh_exec wrapper
-}
-
-sanitize_thorough_remote() {
-    # Thorough sanitization logic here (same as above but for remote execution)
-    echo 'Running thorough sanitization remotely...'
-    # Implementation would be the same as sanitize_thorough but without ssh_exec wrapper
-}
-
-# Robust APT system cleanup with grub-pc-bin handling
+# Comprehensive APT cleanup with grub warning handling
 cleanup_apt_system() {
     local host="$1"
     local user="$2"
     local pass="$3"
     
-    log INFO "Starting APT system cleanup on $host..."
+    log INFO "🧹 Performing comprehensive APT cleanup on $host..."
     
     ssh_exec "$host" "$user" "$pass" "
-        # Set non-interactive frontend to prevent prompts
+        # Set debconf to noninteractive mode to avoid prompts
         export DEBIAN_FRONTEND=noninteractive
         
-        log INFO 'Configuring package system...'
-        sudo dpkg --configure -a || true
+        # Preconfigure grub-pc to avoid interactive prompts
+        if dpkg -l | grep -q grub-pc; then
+            echo 'grub-pc grub-pc/install_devices_empty boolean true' | sudo debconf-set-selections
+            echo 'grub-pc grub-pc/install_devices string /dev/sda' | sudo debconf-set-selections
+            echo 'grub-pc grub-pc/install_devices_disks_changed multiselect' | sudo debconf-set-selections
+        fi
         
-        log INFO 'Fixing broken packages...'
-        sudo apt-get -f install -y || true
+        # Clean package caches first
+        sudo apt-get clean || true
         
-        log INFO 'Updating package lists...'
-        sudo apt-get update -q || true
-        
-        log INFO 'Performing safe autoremove with non-interactive frontend...'
-        sudo -E apt-get -y -q autoremove 2>/dev/null || {
+        # Remove orphaned packages with proper grub handling
+        log INFO 'Removing orphaned packages...'
+        sudo apt-get autoremove -y --purge 2>/dev/null || {
             log WARN 'Standard autoremove failed, trying with force options...'
-            sudo -E apt-get -y -q autoremove --allow-remove-essential 2>/dev/null || true
+            sudo apt-get autoremove -y --purge --allow-remove-essential 2>/dev/null || true
         }
         
-        log INFO 'Cleaning package cache...'
+        # Clean package lists and caches again
         sudo apt-get autoclean || true
+        
+        # Remove partial packages
+        sudo dpkg --configure -a || true
+        sudo apt-get -f install -y || true
+        
+        # Final cleanup of downloaded packages
         sudo apt-get clean || true
         
         log INFO 'APT cleanup completed successfully'

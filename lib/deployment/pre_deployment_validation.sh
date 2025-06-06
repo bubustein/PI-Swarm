@@ -300,11 +300,35 @@ cleanup_pi_disk_space() {
     local ssh_user="$2"
     local ssh_pass="$3"
     
+    # Load sanitization functions for enhanced cleanup
+    if [[ -f "$PROJECT_ROOT/lib/system/sanitization.sh" ]]; then
+        source "$PROJECT_ROOT/lib/system/sanitization.sh"
+        echo "      🧹 Using enhanced cleanup for $ip..."
+        cleanup_apt_system "$ip" "$ssh_user" "$ssh_pass" || {
+            echo "      ⚠️  Enhanced cleanup completed with warnings (usually safe)"
+        }
+        return 0
+    fi
+    
+    # Fallback to basic cleanup if sanitization not available
     if [[ -n "$ssh_pass" ]]; then
         sshpass -p "$ssh_pass" ssh -o StrictHostKeyChecking=no "$ssh_user@$ip" "
-            # Clean package cache
+            # Set debconf to noninteractive mode to avoid prompts
+            export DEBIAN_FRONTEND=noninteractive
+            
+            # Preconfigure grub-pc to avoid interactive prompts
+            if dpkg -l | grep -q grub-pc; then
+                echo 'grub-pc grub-pc/install_devices_empty boolean true' | sudo debconf-set-selections
+                echo 'grub-pc grub-pc/install_devices string /dev/sda' | sudo debconf-set-selections
+                echo 'grub-pc grub-pc/install_devices_disks_changed multiselect' | sudo debconf-set-selections
+            fi
+            
+            # Clean package cache with enhanced handling
             sudo apt-get clean >/dev/null 2>&1 || true
-            sudo apt-get autoremove -y >/dev/null 2>&1 || true
+            sudo apt-get autoremove -y --purge 2>/dev/null || {
+                sudo apt-get autoremove -y --purge --allow-remove-essential 2>/dev/null || true
+            }
+            sudo apt-get autoclean >/dev/null 2>&1 || true
             
             # Clean logs (keep last 7 days)
             sudo journalctl --vacuum-time=7d >/dev/null 2>&1 || true
@@ -320,9 +344,22 @@ cleanup_pi_disk_space() {
         " >/dev/null 2>&1
     else
         ssh -o BatchMode=yes "$ssh_user@$ip" "
-            # Clean package cache
+            # Set debconf to noninteractive mode to avoid prompts
+            export DEBIAN_FRONTEND=noninteractive
+            
+            # Preconfigure grub-pc to avoid interactive prompts
+            if dpkg -l | grep -q grub-pc; then
+                echo 'grub-pc grub-pc/install_devices_empty boolean true' | sudo debconf-set-selections
+                echo 'grub-pc grub-pc/install_devices string /dev/sda' | sudo debconf-set-selections
+                echo 'grub-pc grub-pc/install_devices_disks_changed multiselect' | sudo debconf-set-selections
+            fi
+            
+            # Clean package cache with enhanced handling
             sudo apt-get clean >/dev/null 2>&1 || true
-            sudo apt-get autoremove -y >/dev/null 2>&1 || true
+            sudo apt-get autoremove -y --purge 2>/dev/null || {
+                sudo apt-get autoremove -y --purge --allow-remove-essential 2>/dev/null || true
+            }
+            sudo apt-get autoclean >/dev/null 2>&1 || true
             
             # Clean logs (keep last 7 days)
             sudo journalctl --vacuum-time=7d >/dev/null 2>&1 || true

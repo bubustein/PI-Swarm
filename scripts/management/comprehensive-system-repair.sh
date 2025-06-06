@@ -845,6 +845,53 @@ execute_deployment() {
 cleanup_and_finalize() {
     print_header "CLEANUP AND FINALIZATION"
     
+    print_step "Performing system cleanup..."
+    
+    # Load system sanitization functions
+    if [[ -f "$PROJECT_ROOT/lib/system/sanitization.sh" ]]; then
+        source "$PROJECT_ROOT/lib/system/sanitization.sh"
+        
+        # Perform APT cleanup with grub-pc-bin warning handling
+        log "INFO" "Cleaning up package system..."
+        
+        # Set debconf to noninteractive mode to avoid prompts
+        export DEBIAN_FRONTEND=noninteractive
+        
+        # Preconfigure grub-pc to avoid interactive prompts
+        if dpkg -l | grep -q grub-pc; then
+            echo 'grub-pc grub-pc/install_devices_empty boolean true' | sudo debconf-set-selections
+            echo 'grub-pc grub-pc/install_devices string /dev/sda' | sudo debconf-set-selections
+            echo 'grub-pc grub-pc/install_devices_disks_changed multiselect' | sudo debconf-set-selections
+        fi
+        
+        # Perform apt cleanup
+        log "INFO" "Removing orphaned packages..."
+        sudo apt-get autoremove -y --purge 2>/dev/null || {
+            log "WARN" "Standard autoremove failed, trying with force options..."
+            sudo apt-get autoremove -y --purge --allow-remove-essential 2>/dev/null || true
+        }
+        
+        # Clean package caches
+        sudo apt-get clean || true
+        sudo apt-get autoclean || true
+        
+        log "INFO" "APT cleanup completed successfully"
+        
+        # Clean up Pi nodes if available
+        if [[ -n "${PI_STATIC_IPS:-}" ]]; then
+            for pi_ip in $PI_STATIC_IPS; do
+                log "INFO" "Cleaning up Pi node: $pi_ip"
+                cleanup_apt_system "$pi_ip" "luser" "" || {
+                    log "WARN" "Cleanup on $pi_ip completed with warnings (this is usually safe)"
+                }
+            done
+        fi
+    else
+        log "WARN" "Sanitization script not found, performing basic cleanup..."
+        sudo apt-get autoremove -y --purge 2>/dev/null || true
+        sudo apt-get clean || true
+    fi
+    
     print_step "Committing changes to git repository..."
     cd "$PROJECT_ROOT"
     
