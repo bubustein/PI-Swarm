@@ -594,7 +594,11 @@ EOF
         sudo pihole restartdns || echo 'Failed to restart Pi-hole DNS'
         
         # Set Pi-hole admin password
-        echo 'piswarm123' | sudo pihole -a -p || echo 'Failed to set Pi-hole password'
+        if [[ -z "$PIHOLE_WEB_PASSWORD" ]]; then
+            read -s -p "Enter Pi-hole admin password: " PIHOLE_WEB_PASSWORD
+            echo
+        fi
+        echo "$PIHOLE_WEB_PASSWORD" | sudo pihole -a -p || echo 'Failed to set Pi-hole password'
         
         echo 'Pi-hole DNS configuration completed'
     " || print_warning "Pi-hole DNS configuration failed"

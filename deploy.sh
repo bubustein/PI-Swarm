@@ -373,9 +373,13 @@ if [[ "$ENABLE_PIHOLE" =~ ^(y|yes|)$ ]]; then
     export ENABLE_PIHOLE="true"
     export PIHOLE_IP="auto"  # Use first Pi
     export PIHOLE_DOMAIN="cluster.local"
-    export PIHOLE_WEB_PASSWORD="piswarm123"  # Default password
+    if [[ -z "$PIHOLE_WEB_PASSWORD" ]]; then
+        read -s -p "Enter Pi-hole admin password: " PIHOLE_WEB_PASSWORD
+        echo
+    fi
+    export PIHOLE_WEB_PASSWORD
     echo "   DNS domain: cluster.local"
-    echo "   Admin password: piswarm123 (can be changed later)"
+    echo "   Admin password provided"
 else
     echo "⚠️  Pi-hole DNS disabled - using external DNS servers"
     export ENABLE_PIHOLE="false"
