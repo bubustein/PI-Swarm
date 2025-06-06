@@ -816,9 +816,11 @@ if [[ ${#PI_STATIC_IPS[@]} -gt 0 ]]; then
     deploy_services || { log ERROR "Service deploy failed"; exit 1; }
     
     # Configure enhanced features based on user preferences
-    if [[ "$ENABLE_LETSENCRYPT" =~ ^(y|yes)$ ]] && command -v setup_letsencrypt_ssl >/dev/null 2>&1; then
+    if [[ "${ENABLE_LETSENCRYPT:-n}" =~ ^(y|yes)$ ]] && [[ -n "${SSL_DOMAIN:-}" ]] && [[ -n "${SSL_EMAIL:-}" ]] && command -v setup_letsencrypt_ssl >/dev/null 2>&1; then
         log INFO "Setting up Let's Encrypt SSL automation..."
-        setup_letsencrypt_ssl "$SSL_DOMAIN" "$SSL_EMAIL" || log WARN "Let's Encrypt setup failed"
+        setup_letsencrypt_ssl "$SSL_DOMAIN" "$SSL_EMAIL" "$MANAGER_IP" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" || log WARN "Let's Encrypt setup failed"
+    else
+        log INFO "Skipping Let's Encrypt SSL setup (not configured or variables not set)"
     fi
     
     if [[ "$SETUP_SLACK" =~ ^(y|yes)$ ]] && command -v setup_slack_alerts >/dev/null 2>&1; then

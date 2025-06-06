@@ -15,7 +15,13 @@ Features:
 """
 
 import asyncio
-import asyncssh
+try:
+    import asyncssh
+    HAS_ASYNCSSH = True
+except ImportError:
+    HAS_ASYNCSSH = False
+    print("Warning: asyncssh not available, using paramiko only")
+
 import subprocess
 import threading
 import time
@@ -23,6 +29,7 @@ import json
 from typing import Dict, List, Optional, Tuple, Any, Union
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import paramiko
 import logging
 from pathlib import Path
 

@@ -31,7 +31,11 @@ if [[ -f "lib/python_integration.sh" ]]; then
     PYTHON_ENHANCED=true
     
     # Test Python integration capabilities
-    test_python_integration
+    if test_python_integration; then
+        echo "🎉 Full Python integration available"
+    else
+        echo "🔧 Using Python integration with Bash fallbacks"
+    fi
 else
     PYTHON_ENHANCED=false
 fi
@@ -512,8 +516,8 @@ if [[ "$RUN_VALIDATION" == "true" ]]; then
     echo "===================================="
     
     # Source the pre-deployment validation functions
-    if [[ -f "$SCRIPT_DIR/lib/deployment/pre_deployment_validation.sh" ]]; then
-        source "$SCRIPT_DIR/lib/deployment/pre_deployment_validation.sh"
+    if [[ -f "$SCRIPT_DIR/../lib/deployment/pre_deployment_validation.sh" ]]; then
+        source "$SCRIPT_DIR/../lib/deployment/pre_deployment_validation.sh"
         
         # Convert PI_IPS string to array
         IFS=' ' read -ra pi_array <<< "$PI_IPS"
@@ -595,10 +599,10 @@ else
     echo "4. Review the troubleshooting guide: docs/TROUBLESHOOTING.md"
     echo ""
     echo "💬 For support, visit: https://github.com/bubustein/PI-Swarm/issues"
+    echo "   • docs/TROUBLESHOOTING.md"
+    echo "   • docs/FAQ.md" 
+    echo "   • GitHub Issues: https://github.com/yourusername/pi-swarm/issues"
     exit 1
 fi
-echo "   • docs/TROUBLESHOOTING.md"
-echo "   • docs/FAQ.md" 
-echo "   • GitHub Issues: https://github.com/yourusername/pi-swarm/issues"
 
 exit $deployment_status

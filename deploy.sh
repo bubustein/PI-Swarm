@@ -69,7 +69,11 @@ if [[ -f "$SCRIPT_DIR/lib/python_integration.sh" ]]; then
     source "$SCRIPT_DIR/lib/python_integration.sh"
     
     # Test Python integration capabilities
-    test_python_integration
+    if test_python_integration; then
+        echo "🎉 Full Python integration available"
+    else
+        echo "🔧 Using Python integration with Bash fallbacks"
+    fi
     
     # Use enhanced directory setup
     if setup_directories_enhanced "$SCRIPT_DIR"; then

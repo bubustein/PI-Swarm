@@ -651,7 +651,7 @@ def main():
         
         for service in services:
             print(f"{service.name:<20} {service.image:<30} "
-                  f"{service.running_replicas}/{service.desired_replicas}:<12} {service.state:<15}")
+                  f"{service.running_replicas}/{service.desired_replicas:<12} {service.state:<15}")
     
     elif args.action == 'scale':
         if not args.service or args.replicas is None:

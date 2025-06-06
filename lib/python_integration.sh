@@ -608,12 +608,39 @@ optimize_cluster_performance() {
 
 # Comprehensive cluster health check
 health_check_comprehensive() {
-    local manager_ip="$1"
+    local manager_ip="${1:-}"
     local nodes=("${@:2}")
     local ssh_user="${SSH_USER:-pi}"
     local ssh_pass="${SSH_PASS:-}"
     
     log INFO "🏥 Starting comprehensive cluster health check..."
+    
+    # If no manager IP provided, run basic system health check
+    if [[ -z "$manager_ip" ]]; then
+        log INFO "📋 Running basic system health check (no cluster specified)..."
+        
+        # Check system resources
+        if command -v free >/dev/null 2>&1; then
+            local memory_usage=$(free | awk 'NR==2{printf "%.1f%%", $3*100/$2 }')
+            log INFO "💾 Memory usage: $memory_usage"
+        fi
+        
+        # Check disk space
+        if command -v df >/dev/null 2>&1; then
+            local disk_usage=$(df -h / | awk 'NR==2{print $5}')
+            log INFO "💽 Disk usage: $disk_usage"
+        fi
+        
+        # Check Python modules
+        if check_python_modules "directory_manager" >/dev/null 2>&1; then
+            log INFO "🐍 Python modules: Available"
+        else
+            log WARN "🐍 Python modules: Limited availability"
+        fi
+        
+        log INFO "✅ Basic system health check completed"
+        return 0
+    fi
     
     local health_score=0
     local max_score=0

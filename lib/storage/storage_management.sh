@@ -202,6 +202,130 @@ setup_local_storage() {
     log INFO "✅ Local storage setup completed!"
 }
 
+# Function to setup GlusterFS storage (distributed filesystem)
+setup_glusterfs_storage() {
+    local pi_ips=("$@")
+    local volume_name="piswarm-volume"
+    local brick_path="/data/glusterfs/brick"
+    
+    log INFO "  Setting up GlusterFS cluster with ${#pi_ips[@]} nodes..."
+    
+    # Install GlusterFS on all Pis
+    for pi_ip in "${pi_ips[@]}"; do
+        log INFO "  Installing GlusterFS on $pi_ip..."
+        ssh_exec "$pi_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" "
+            # Update package list
+            sudo apt-get update -qq
+            
+            # Install GlusterFS server
+            if ! dpkg -l | grep -q glusterfs-server; then
+                sudo apt-get install -y glusterfs-server
+            fi
+            
+            # Start and enable GlusterFS daemon
+            sudo systemctl start glusterd
+            sudo systemctl enable glusterd
+            
+            # Prepare storage device
+            if [[ '$STORAGE_DEVICE' == 'auto' ]]; then
+                STORAGE_DEVICE=\$(lsblk -d -o NAME,SIZE,TYPE | grep disk | grep -E '(250|240|256).*G' | head -n1 | awk '{print \"/dev/\" \$1}')
+            else
+                STORAGE_DEVICE='$STORAGE_DEVICE'
+            fi
+            
+            # Create brick directory
+            sudo mkdir -p '$brick_path'
+            
+            if [[ -n \"\$STORAGE_DEVICE\" ]]; then
+                # Create filesystem if needed
+                if ! blkid \$STORAGE_DEVICE | grep -q ext4; then
+                    sudo mkfs.ext4 -F \$STORAGE_DEVICE
+                fi
+                
+                # Mount storage device
+                if ! grep -q \$STORAGE_DEVICE /etc/fstab; then
+                    echo \"\$STORAGE_DEVICE $brick_path ext4 defaults 0 2\" | sudo tee -a /etc/fstab
+                fi
+                sudo mount '$brick_path' 2>/dev/null || sudo mount \$STORAGE_DEVICE '$brick_path'
+            fi
+            
+            # Set proper permissions
+            sudo chown -R root:root '$brick_path'
+            sudo chmod 755 '$brick_path'
+            
+            echo 'GlusterFS server setup completed on $pi_ip'
+        "
+    done
+    
+    # Peer probe all nodes (create trusted pool)
+    local first_node="${pi_ips[0]}"
+    for pi_ip in "${pi_ips[@]:1}"; do
+        log INFO "  Adding peer $pi_ip to GlusterFS cluster..."
+        ssh_exec "$first_node" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" "
+            sudo gluster peer probe $pi_ip
+        "
+    done
+    
+    # Wait for peers to be connected
+    sleep 5
+    
+    # Create volume
+    log INFO "  Creating GlusterFS volume '$volume_name'..."
+    local brick_list=""
+    for pi_ip in "${pi_ips[@]}"; do
+        brick_list="$brick_list $pi_ip:$brick_path/vol"
+    done
+    
+    ssh_exec "$first_node" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" "
+        # Create brick directories
+        for pi_ip in ${pi_ips[@]}; do
+            ssh \$pi_ip 'sudo mkdir -p $brick_path/vol'
+        done
+        
+        # Create distributed volume
+        if ! sudo gluster volume info $volume_name &>/dev/null; then
+            sudo gluster volume create $volume_name replica 1 $brick_list force
+            sudo gluster volume start $volume_name
+        fi
+        
+        # Configure volume settings for performance
+        sudo gluster volume set $volume_name auth.allow '*'
+        sudo gluster volume set $volume_name performance.cache-size 256MB
+        sudo gluster volume set $volume_name network.ping-timeout 30
+    "
+    
+    # Mount volume on all nodes
+    for pi_ip in "${pi_ips[@]}"; do
+        log INFO "  Mounting GlusterFS volume on $pi_ip..."
+        ssh_exec "$pi_ip" "$NODES_DEFAULT_USER" "$NODES_DEFAULT_PASS" "
+            # Install GlusterFS client
+            if ! dpkg -l | grep -q glusterfs-client; then
+                sudo apt-get install -y glusterfs-client
+            fi
+            
+            # Create mount point
+            sudo mkdir -p '$SHARED_STORAGE_PATH'
+            sudo mkdir -p '$DOCKER_STORAGE_PATH'
+            
+            # Mount the volume
+            if ! mount | grep -q '$SHARED_STORAGE_PATH'; then
+                sudo mount -t glusterfs localhost:/$volume_name '$SHARED_STORAGE_PATH'
+            fi
+            
+            # Add to fstab for persistence
+            if ! grep -q '$volume_name' /etc/fstab; then
+                echo 'localhost:/$volume_name $SHARED_STORAGE_PATH glusterfs defaults,_netdev 0 0' | sudo tee -a /etc/fstab
+            fi
+            
+            # Create Docker volume directory
+            sudo mkdir -p '$DOCKER_STORAGE_PATH'
+            sudo chown -R 1000:1000 '$SHARED_STORAGE_PATH'
+        "
+    done
+    
+    log INFO "  GlusterFS cluster setup completed!"
+}
+
 # Function to validate storage setup
 validate_storage_setup() {
     local pi_ips=("$@")
