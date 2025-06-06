@@ -14,7 +14,7 @@
 #   - All dependencies installed (see docs/README.md)
 #   - Python 3.6+ for enhanced modules
 #
-# Project Home: https://github.com/<your-org>/pi-swarm
+# Project Home: https://github.com/bubustein/PI-Swarm
 # ------------------------------------------------------------------------------
 set -euo pipefail
 

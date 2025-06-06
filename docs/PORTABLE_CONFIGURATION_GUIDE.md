@@ -98,23 +98,59 @@ The environment setup script includes automatic network discovery to help you co
 
 ## Deployment Scripts
 
-### Main Deployment
+### Initial Setup and Deployment
+
+```bash
+# Clone the repository
+git clone https://github.com/bubustein/PI-Swarm.git
+cd PI-Swarm
+
+# Make scripts executable
+chmod +x deploy.sh
+chmod +x scripts/setup-environment.sh
+
+# Configure environment (recommended)
+./scripts/setup-environment.sh
+
+# Deploy your cluster
+./deploy.sh
+```
+
+### Alternative Manual Configuration
+
+```bash
+# Clone and setup
+git clone https://github.com/bubustein/PI-Swarm.git
+cd PI-Swarm
+chmod +x deploy.sh
+
+# Configure environment variables manually
+export PI_NODE_IPS="192.168.1.101,192.168.1.102,192.168.1.103"
+export NODES_DEFAULT_USER="pi"
+
+# Deploy
+./deploy.sh
+```
+
+### Individual Script Usage
+
+#### Main Deployment
 ```bash
 # After configuring environment variables
 ./deploy.sh
 ```
 
-### Comprehensive System Repair
+#### Comprehensive System Repair
 ```bash
 ./scripts/management/comprehensive-system-repair.sh
 ```
 
-### Automated Comprehensive Deployment
+#### Automated Comprehensive Deployment
 ```bash
 ./scripts/deployment/automated-comprehensive-deploy.sh
 ```
 
-### SSH Setup
+#### SSH Setup
 ```bash
 ./scripts/management/setup-ssh-keys.sh
 ./scripts/management/fix-ssh-sudo.sh

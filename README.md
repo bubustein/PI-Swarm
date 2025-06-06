@@ -26,10 +26,39 @@ Pi-Swarm transforms your Raspberry Pi devices into a powerful, production-ready 
 
 ## 🚀 Quick Start
 
+### Prerequisites
+- Raspberry Pi nodes with SSH enabled
+- Network connectivity between deployment machine and Pi nodes
+
+### Installation & Setup
+
 ```bash
-git clone <your-repo-url>
+# Clone the repository
+git clone https://github.com/bubustein/PI-Swarm.git
 cd PI-Swarm
+
+# Make deployment script executable
 chmod +x deploy.sh
+
+# Configure your environment (interactive setup)
+./scripts/setup-environment.sh
+
+# Deploy your Pi-Swarm cluster
+./deploy.sh
+```
+
+### Manual Configuration (Alternative)
+
+If you prefer manual setup, configure environment variables:
+
+```bash
+# Set your Pi node IP addresses
+export PI_NODE_IPS="192.168.1.101,192.168.1.102,192.168.1.103"
+
+# Set SSH username (default: pi)
+export NODES_DEFAULT_USER="pi"
+
+# Deploy
 ./deploy.sh
 ```
 

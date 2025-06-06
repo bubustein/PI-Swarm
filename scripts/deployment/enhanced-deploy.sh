@@ -601,7 +601,7 @@ else
     echo "💬 For support, visit: https://github.com/bubustein/PI-Swarm/issues"
     echo "   • docs/TROUBLESHOOTING.md"
     echo "   • docs/FAQ.md" 
-    echo "   • GitHub Issues: https://github.com/yourusername/pi-swarm/issues"
+    echo "   • GitHub Issues: https://github.com/bubustein/PI-Swarm/issues"
     exit 1
 fi
 
