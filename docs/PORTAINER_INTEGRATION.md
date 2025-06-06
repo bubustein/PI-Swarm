@@ -33,7 +33,7 @@ Updated `functions/deploy_services.sh` to:
 ### 5. **Environment Configuration**
 Enhanced `functions/configure_pi_headless.sh` to create `.env` file with:
 ```bash
-PORTAINER_PASSWORD=piswarm123
+PORTAINER_PASSWORD=<your-portainer-password>
 GRAFANA_PASSWORD=admin
 PORTAINER_PORT=9443
 PORTAINER_HTTP_PORT=9000
@@ -46,7 +46,7 @@ PROMETHEUS_PORT=9090
 ### **Portainer (Container Management)**
 - **HTTPS**: `https://[manager-ip]:9443` (Recommended - SSL secured)
 - **HTTP**: `http://[manager-ip]:9000` (Alternative access)
-- **Login**: `admin` / `piswarm123`
+- **Login**: `admin` / *your Portainer password*
 - **Features**:
   - Full Docker Swarm management
   - Container deployment and monitoring
@@ -93,7 +93,7 @@ After successful deployment, you'll see:
 🐳 PORTAINER (Container Management):
    • HTTPS: https://[MANAGER-IP]:9443
    • HTTP:  http://[MANAGER-IP]:9000
-   • Login: admin / piswarm123
+   • Login: admin / *your Portainer password*
 
 📊 GRAFANA (Monitoring Dashboard):
    • URL: http://[MANAGER-IP]:3000

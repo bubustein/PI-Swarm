@@ -60,7 +60,7 @@ The Pi-hole DNS server integration has been successfully implemented and integra
   - Portainer: `http://portainer.cluster.local:9000`
   - Grafana: `http://grafana.cluster.local:3000`
 - **Ad Blocking**: Automatic for all cluster traffic
-- **Management**: Web interface with password `piswarm123`
+ - **Management**: Web interface secured with your chosen password
 
 ## 🔧 Key Benefits
 
