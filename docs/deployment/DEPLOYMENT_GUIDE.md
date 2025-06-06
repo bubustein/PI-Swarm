@@ -147,6 +147,7 @@ Edit configuration files before deployment:
 - Enable SSH key authentication
 - Consider VPN access for remote management
 - Regular security updates on all Pis
+- See [Post-Deployment Hardening](../POST_DEPLOYMENT_HARDENING.md) for detailed steps
 
 ## Next Steps
 
