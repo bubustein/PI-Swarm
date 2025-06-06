@@ -611,6 +611,4 @@ log "INFO" "Deployment completed with status: $deployment_status"
 log "INFO" "Deployment completed with status: $deployment_status"
 
 log "INFO" "Deployment completed with status: $deployment_status"
-
-log "INFO" "Deployment completed with status: $deployment_status"
 exit $deployment_status
