@@ -54,7 +54,7 @@ Before running any deployment:
 
 3. **Credentials**
    - [ ] You know the username and password for your Pis
-   - [ ] Default credentials: username=`luser`, password=`raspberry`
+   - [ ] **Set unique credentials for each Pi; do not rely on defaults**
 
 4. **Local Machine**
    - [ ] SSH client available
@@ -67,12 +67,12 @@ After successful deployment, you can access:
 ### Management Interfaces
 - **Portainer**: http://YOUR_PI_IP:9000
   - Username: admin
-  - Password: piswarm123 (default)
+  - Password: *your chosen password*
   - Manage containers, services, and swarm
 
 - **Grafana**: http://YOUR_PI_IP:3000
   - Username: admin
-  - Password: admin (default)
+  - Password: admin (change on first login)
   - Monitor cluster performance and health
 
 ### Useful Commands

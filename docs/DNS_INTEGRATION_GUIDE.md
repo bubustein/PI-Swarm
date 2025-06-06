@@ -49,7 +49,7 @@ The system will automatically configure:
 |---------|---------------|-------------|
 | **Pi-hole Server** | First Pi in cluster | Which Pi hosts the DNS server |
 | **Domain Name** | `cluster.local` | Local domain for the cluster |
-| **Admin Password** | `piswarm123` | Web interface password |
+| **Admin Password** | *set during deployment* | Web interface password |
 | **Upstream DNS** | `1.1.1.1, 8.8.8.8` | External DNS servers |
 
 ## Usage
@@ -97,7 +97,7 @@ services:
 ### Pi-hole Web Interface
 
 1. **Access**: Navigate to `http://pihole.cluster.local/admin`
-2. **Login**: Use password `piswarm123` (default)
+2. **Login**: Sign in with the password you configured
 3. **Features**:
    - View DNS query logs
    - Manage blocklists

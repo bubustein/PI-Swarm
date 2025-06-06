@@ -767,7 +767,11 @@ if [[ "${ENABLE_PIHOLE:-false}" == "true" ]] && command -v setup_pihole_dns >/de
     
     # Configure Pi-hole DNS with cluster settings
     export PIHOLE_IP="${PIHOLE_IP:-auto}"  # Use first Pi if not specified
-    export PIHOLE_WEB_PASSWORD="${PIHOLE_WEB_PASSWORD:-piswarm123}"
+    if [[ -z "$PIHOLE_WEB_PASSWORD" ]]; then
+        log ERROR "No Pi-hole password supplied. Set PIHOLE_WEB_PASSWORD environment variable."
+        exit 1
+    fi
+    export PIHOLE_WEB_PASSWORD
     export PIHOLE_DNS_UPSTREAM="${PIHOLE_DNS_UPSTREAM:-1.1.1.1,8.8.8.8}"
     export PIHOLE_DOMAIN="${PIHOLE_DOMAIN:-cluster.local}"
     

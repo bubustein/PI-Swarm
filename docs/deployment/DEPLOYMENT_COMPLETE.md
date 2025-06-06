@@ -8,7 +8,7 @@ Your Pi-Swarm system now includes:
 #### **🐳 Portainer CE** - Container Management Platform
 - **HTTPS Access**: `https://[manager-ip]:9443` (SSL secured)
 - **HTTP Access**: `http://[manager-ip]:9000` (backup option)
-- **Default Login**: `admin` / `piswarm123`
+- **Login**: `admin` / *your configured password*
 - **Auto-detects Docker Swarm** and provides full management capabilities
 
 #### **📊 Grafana** - Monitoring Dashboard
@@ -67,7 +67,7 @@ After successful deployment, you'll see:
 🐳 PORTAINER (Container Management):
    • HTTPS: https://[MANAGER-IP]:9443
    • HTTP:  http://[MANAGER-IP]:9000
-   • Login: admin / piswarm123
+   • Login: admin / *your configured password*
 
 📊 GRAFANA (Monitoring Dashboard):
    • URL: http://[MANAGER-IP]:3000
@@ -81,7 +81,7 @@ After successful deployment, you'll see:
 
 1. **Open Portainer**: `https://[manager-ip]:9443`
    - Accept the SSL warning (self-signed certificate)
-   - Login with `admin` / `piswarm123`
+   - Login with `admin` / *your configured password*
    - **Change the password** on first login
    - Portainer automatically detects your Docker Swarm
 

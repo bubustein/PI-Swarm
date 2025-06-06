@@ -72,7 +72,7 @@ echo 'export NODES_DEFAULT_USER="pi"' >> ~/.bashrc
 
 ### Method 3: Environment File
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root (a sample `.env.example` is provided):
 
 ```bash
 # .env file
