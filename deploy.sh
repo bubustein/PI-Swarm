@@ -2,6 +2,23 @@
 
 # Pi-Swarm v2.0.0 - Main Deployment Script
 # This script provides easy access to all deployment options
+#
+# ENVIRONMENT CONFIGURATION:
+# Before running this script, configure the required environment variables:
+#
+#   PI_NODE_IPS       - Comma-separated list of Pi node IP addresses
+#                       Example: "192.168.1.101,192.168.1.102,192.168.1.103"
+#
+#   NODES_DEFAULT_USER - Default SSH username for Pi nodes (default: pi)
+#                       Example: "pi" or "ubuntu"
+#
+# Optional environment variables:
+#   MANAGER_IP        - Specific manager IP (auto-detected if not set)
+#   NODES_DEFAULT_PASS - Default SSH password (prompts if not set)
+#
+# Quick setup: Run ./scripts/setup-environment.sh to configure these variables
+#
+# For more information, see docs/DEPLOYMENT_GUIDE.md
 
 set -euo pipefail
 
@@ -59,6 +76,31 @@ done
 export OFFLINE_MODE
 export SKIP_NETWORK_CHECK
 export VERBOSE
+
+# ---- Environment Validation ----
+echo "🔍 Validating environment configuration..."
+
+# Check for required environment variables
+if [[ -z "${PI_NODE_IPS:-}" ]]; then
+    echo "❌ ERROR: PI_NODE_IPS environment variable is not set!"
+    echo ""
+    echo "Please configure your Pi node IP addresses by either:"
+    echo "1. Running the setup script: ./scripts/setup-environment.sh"
+    echo "2. Manually setting: export PI_NODE_IPS='192.168.1.101,192.168.1.102,192.168.1.103'"
+    echo ""
+    echo "For more information, see docs/DEPLOYMENT_GUIDE.md"
+    exit 1
+fi
+
+# Set default user if not configured
+if [[ -z "${NODES_DEFAULT_USER:-}" ]]; then
+    echo "⚠️  NODES_DEFAULT_USER not set, using default: pi"
+    export NODES_DEFAULT_USER="pi"
+fi
+
+echo "✅ Environment validation complete"
+echo "   Pi Nodes: $PI_NODE_IPS"
+echo "   Default User: $NODES_DEFAULT_USER"
 
 # ---- Directory Structure Setup ----
 echo "📁 Setting up project directories..."

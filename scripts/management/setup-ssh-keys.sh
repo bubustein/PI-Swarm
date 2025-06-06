@@ -53,9 +53,18 @@ print_error() {
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SSH_USER="luser"
+SSH_USER="${NODES_DEFAULT_USER:-pi}"
 SSH_KEY_PATH="$HOME/.ssh/id_rsa"
-DEFAULT_PI_IPS=("192.168.3.201" "192.168.3.202" "192.168.3.203" "192.168.3.204")
+DEFAULT_PI_IPS=()
+
+# Get Pi node IPs from environment
+if [[ -n "${PI_NODE_IPS:-}" ]]; then
+    IFS=',' read -ra DEFAULT_PI_IPS <<< "$PI_NODE_IPS"
+else
+    echo -e "${RED}[ERROR] No Pi node IPs configured. Please set PI_NODE_IPS environment variable${NC}"
+    echo -e "${YELLOW}Example: export PI_NODE_IPS='192.168.1.101,192.168.1.102,192.168.1.103'${NC}"
+    exit 1
+fi
 
 print_header "SSH KEY SETUP AND PASSWORDLESS SUDO CONFIGURATION"
 

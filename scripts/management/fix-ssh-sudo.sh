@@ -22,8 +22,17 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-SSH_USER="luser"
-PI_NODES=("192.168.3.201" "192.168.3.202" "192.168.3.203" "192.168.3.204")
+SSH_USER="${NODES_DEFAULT_USER:-pi}"
+PI_NODES=()
+
+# Get Pi node IPs from environment
+if [[ -n "${PI_NODE_IPS:-}" ]]; then
+    IFS=',' read -ra PI_NODES <<< "$PI_NODE_IPS"
+else
+    echo -e "${RED}[ERROR] No Pi node IPs configured. Please set PI_NODE_IPS environment variable${NC}"
+    echo -e "${YELLOW}Example: export PI_NODE_IPS='192.168.1.101,192.168.1.102,192.168.1.103'${NC}"
+    exit 1
+fi
 
 log() {
     local level="$1"

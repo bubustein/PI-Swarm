@@ -12,6 +12,17 @@
 # - Service deployment and monitoring
 # - Script path corrections and error handling
 #
+# ENVIRONMENT CONFIGURATION:
+# Before running this script, configure the required environment variables:
+#
+#   PI_NODE_IPS       - Comma-separated list of Pi node IP addresses
+#                       Example: "192.168.1.101,192.168.1.102,192.168.1.103"
+#
+#   NODES_DEFAULT_USER - Default SSH username for Pi nodes (default: pi)
+#                       Example: "pi" or "ubuntu"
+#
+# Quick setup: Run ../../scripts/setup-environment.sh to configure these variables
+#
 # Author: DevOps Team
 # Version: 2.0.0
 # Date: June 6, 2025
@@ -45,6 +56,22 @@ log() {
 error_exit() {
     log "ERROR" "$1"
     exit 1
+}
+
+# Environment validation
+validate_environment() {
+    log "INFO" "Validating environment configuration..."
+    
+    if [[ -z "${PI_NODE_IPS:-}" ]]; then
+        error_exit "PI_NODE_IPS environment variable is not set! Please run ../../scripts/setup-environment.sh or set manually."
+    fi
+    
+    if [[ -z "${NODES_DEFAULT_USER:-}" ]]; then
+        log "WARN" "NODES_DEFAULT_USER not set, using default: pi"
+        export NODES_DEFAULT_USER="pi"
+    fi
+    
+    log "INFO" "Environment validation complete - Pi Nodes: $PI_NODE_IPS, User: $NODES_DEFAULT_USER"
 }
 
 print_header() {
@@ -177,11 +204,21 @@ fix_python_dependencies_on_pis() {
     if [[ -n "${PI_STATIC_IPS:-}" ]]; then
         IFS=' ' read -ra pi_nodes <<< "$PI_STATIC_IPS"
     else
-        # Use known Pi node IPs
+        # Use environment-configured Pi node IPs or prompt user
         print_step "Discovering Pi nodes..."
-        local known_pi_ips=("192.168.3.201" "192.168.3.202" "192.168.3.203")
+        local known_pi_ips=()
+        
+        # Try to get from environment variables
+        if [[ -n "${PI_NODE_IPS:-}" ]]; then
+            IFS=',' read -ra known_pi_ips <<< "$PI_NODE_IPS"
+        else
+            print_warning "No Pi node IPs configured. Please set PI_NODE_IPS environment variable"
+            print_warning "Example: export PI_NODE_IPS='192.168.1.101,192.168.1.102,192.168.1.103'"
+            return 1
+        fi
+        
         for ip in "${known_pi_ips[@]}"; do
-            if ssh -o ConnectTimeout=5 -o BatchMode=yes "luser@$ip" "echo 'test'" >/dev/null 2>&1; then
+            if ssh -o ConnectTimeout=5 -o BatchMode=yes "${NODES_DEFAULT_USER:-pi}@$ip" "echo 'test'" >/dev/null 2>&1; then
                 pi_nodes+=("$ip")
             fi
         done
@@ -291,7 +328,7 @@ setup_ssl_automation() {
 # Function to set up SSL certificates for the cluster
 setup_ssl_certificates() {
     local manager_ip="${1:-${MANAGER_IP:-}}"
-    local ssh_user="${2:-${NODES_DEFAULT_USER:-luser}}"
+    local ssh_user="${2:-${NODES_DEFAULT_USER:-pi}}"
     local ssh_pass="${3:-${NODES_DEFAULT_PASS:-}}"
     
     if [[ -z "$manager_ip" ]]; then
@@ -314,7 +351,7 @@ setup_ssl_certificates() {
 # Generate wildcard SSL certificate
 generate_wildcard_ssl() {
     local manager_ip="$1"
-    local ssh_user="${2:-luser}"
+    local ssh_user="${2:-${NODES_DEFAULT_USER:-pi}}"
     local ssh_pass="${3:-}"
     
     log "INFO" "Generating wildcard SSL certificate for $manager_ip"
@@ -342,7 +379,7 @@ setup_letsencrypt_ssl() {
     local domain="${1:-}"
     local email="${2:-}"
     local manager_ip="${3:-${MANAGER_IP:-}}"
-    local ssh_user="${4:-${NODES_DEFAULT_USER:-luser}}"
+    local ssh_user="${4:-${NODES_DEFAULT_USER:-pi}}"
     local ssh_pass="${5:-${NODES_DEFAULT_PASS:-}}"
     
     # Validate required parameters
@@ -384,7 +421,7 @@ setup_letsencrypt_ssl() {
 # Set up SSL monitoring and auto-renewal
 setup_ssl_monitoring() {
     local manager_ip="${1:-${MANAGER_IP:-}}"
-    local ssh_user="${2:-${NODES_DEFAULT_USER:-luser}}"
+    local ssh_user="${2:-${NODES_DEFAULT_USER:-pi}}"
     local ssh_pass="${3:-${NODES_DEFAULT_PASS:-}}"
     
     if [[ -z "$manager_ip" ]]; then
@@ -458,11 +495,20 @@ setup_pihole_dns_repair() {
     
     # Discover available Pi nodes first
     local discovered_nodes=()
-    local default_ips=("192.168.3.201" "192.168.3.202" "192.168.3.203" "192.168.3.204")
+    local default_ips=()
+    
+    # Get Pi node IPs from environment
+    if [[ -n "${PI_NODE_IPS:-}" ]]; then
+        IFS=',' read -ra default_ips <<< "$PI_NODE_IPS"
+    else
+        print_warning "No Pi node IPs configured. Please set PI_NODE_IPS environment variable"
+        print_warning "Example: export PI_NODE_IPS='192.168.1.101,192.168.1.102,192.168.1.103'"
+        return 1
+    fi
     
     print_step "Discovering available Pi nodes..."
     for ip in "${default_ips[@]}"; do
-        if ssh -o ConnectTimeout=5 -o BatchMode=yes "luser@$ip" "echo 'test'" >/dev/null 2>&1; then
+        if ssh -o ConnectTimeout=5 -o BatchMode=yes "${NODES_DEFAULT_USER:-pi}@$ip" "echo 'test'" >/dev/null 2>&1; then
             discovered_nodes+=("$ip")
             log "INFO" "  ✅ Node $ip: ONLINE"
         else
@@ -1003,16 +1049,28 @@ EOF
 main() {
     print_header "PI-SWARM COMPREHENSIVE SYSTEM REPAIR v2.0.0"
     
+    # Validate environment configuration first
+    validate_environment
+    
     log "INFO" "Starting comprehensive system repair..."
     
     # Discover and set Pi node IPs early to ensure all functions have access
     if [[ -z "${PI_STATIC_IPS:-}" ]]; then
         print_step "Discovering Pi nodes for system setup..."
         local discovered_nodes=()
-        local default_ips=("192.168.3.201" "192.168.3.202" "192.168.3.203" "192.168.3.204")
+        local default_ips=()
+        
+        # Get Pi node IPs from environment
+        if [[ -n "${PI_NODE_IPS:-}" ]]; then
+            IFS=',' read -ra default_ips <<< "$PI_NODE_IPS"
+        else
+            print_warning "No Pi node IPs configured. Please set PI_NODE_IPS environment variable"
+            print_warning "Example: export PI_NODE_IPS='192.168.1.101,192.168.1.102,192.168.1.103'"
+            return 1
+        fi
         
         for ip in "${default_ips[@]}"; do
-            if ssh -o ConnectTimeout=5 -o BatchMode=yes "luser@$ip" "echo 'test'" >/dev/null 2>&1; then
+            if ssh -o ConnectTimeout=5 -o BatchMode=yes "${NODES_DEFAULT_USER:-pi}@$ip" "echo 'test'" >/dev/null 2>&1; then
                 discovered_nodes+=("$ip")
                 log "INFO" "  ✅ Node $ip: ONLINE"
             fi

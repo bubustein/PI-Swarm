@@ -7,6 +7,17 @@
 # This script runs the comprehensive repair and then deploys the cluster
 # in a fully automated fashion, addressing all known issues.
 #
+# ENVIRONMENT CONFIGURATION:
+# Before running this script, configure the required environment variables:
+#
+#   PI_NODE_IPS       - Comma-separated list of Pi node IP addresses
+#                       Example: "192.168.1.101,192.168.1.102,192.168.1.103"
+#
+#   NODES_DEFAULT_USER - Default SSH username for Pi nodes (default: pi)
+#                       Example: "pi" or "ubuntu"
+#
+# Quick setup: Run ../../scripts/setup-environment.sh to configure these variables
+#
 # Author: DevOps Team
 # Version: 2.0.0
 # Date: June 7, 2025
@@ -54,7 +65,28 @@ print_error() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+# Environment validation
+validate_environment() {
+    log "INFO" "Validating environment configuration..."
+    
+    if [[ -z "${PI_NODE_IPS:-}" ]]; then
+        print_error "PI_NODE_IPS environment variable is not set!"
+        print_error "Please run ../../scripts/setup-environment.sh or set manually."
+        exit 1
+    fi
+    
+    if [[ -z "${NODES_DEFAULT_USER:-}" ]]; then
+        print_warning "NODES_DEFAULT_USER not set, using default: pi"
+        export NODES_DEFAULT_USER="pi"
+    fi
+    
+    log "INFO" "Environment validation complete - Pi Nodes: $PI_NODE_IPS, User: $NODES_DEFAULT_USER"
+}
+
 print_header "AUTOMATED COMPREHENSIVE PI-SWARM DEPLOYMENT"
+
+# Validate environment first
+validate_environment
 
 log "INFO" "Starting automated deployment process..."
 
@@ -73,11 +105,20 @@ if [[ -z "${PI_STATIC_IPS:-}" ]]; then
     # Discover Pi nodes
     log "INFO" "Discovering Pi nodes..."
     discovered_nodes=()
-    default_ips=("192.168.3.201" "192.168.3.202" "192.168.3.203" "192.168.3.204")
+    default_ips=()
+    
+    # Get Pi node IPs from environment
+    if [[ -n "${PI_NODE_IPS:-}" ]]; then
+        IFS=',' read -ra default_ips <<< "$PI_NODE_IPS"
+    else
+        print_warning "No Pi node IPs configured. Please set PI_NODE_IPS environment variable"
+        print_warning "Example: export PI_NODE_IPS='192.168.1.101,192.168.1.102,192.168.1.103'"
+        exit 1
+    fi
     
     for ip in "${default_ips[@]}"; do
         if ping -c 1 -W 2 "$ip" >/dev/null 2>&1; then
-            if ssh -o ConnectTimeout=5 -o BatchMode=yes "luser@$ip" "echo 'test'" >/dev/null 2>&1; then
+            if ssh -o ConnectTimeout=5 -o BatchMode=yes "${NODES_DEFAULT_USER:-pi}@$ip" "echo 'test'" >/dev/null 2>&1; then
                 discovered_nodes+=("$ip")
                 log "INFO" "  ✅ Node $ip: ONLINE"
             fi
