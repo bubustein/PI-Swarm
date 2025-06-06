@@ -77,6 +77,15 @@ export NODES_DEFAULT_USER="pi"
 
 For more, see the [docs/](docs/) folder.
 
+## 🧪 Running Tests
+
+Unit tests are located in `tests/`. Install `pytest` and run:
+
+```bash
+pip install pytest
+pytest
+```
+
 ## 🤝 Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)
 
