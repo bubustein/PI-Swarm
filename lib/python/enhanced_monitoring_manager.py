@@ -558,9 +558,9 @@ class MonitoringManager:
 def main():
     parser = argparse.ArgumentParser(description="Enhanced Pi-Swarm Monitoring Manager")
     parser.add_argument("--manager-ip", required=True, help="Manager node IP address")
-    parser.add_argument("--ssh-user", default="pi", help="SSH username")
+    parser.add_argument("--ssh-user", default="luser", help="SSH username")
     parser.add_argument("--ssh-pass", default="", help="SSH password")
-    parser.add_argument("--data-dir", default="/var/lib/piswarm/monitoring", 
+    parser.add_argument("--data-dir", default="/tmp/piswarm/monitoring", 
                        help="Data directory for metrics storage")
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")

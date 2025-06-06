@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Auto-generated directory structure validation script for Pi-Swarm
-Generated: 2025-06-07T00:24:59.151487
+Generated: 2025-06-07T00:32:08.357352
 """
 
 import sys

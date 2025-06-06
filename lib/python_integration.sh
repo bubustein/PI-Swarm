@@ -444,8 +444,8 @@ manage_storage_comprehensive() {
     
     if check_python_modules "enhanced_storage_manager" >/dev/null 2>&1; then
         log INFO "🐍 Using Python enhanced storage manager..."
-        local cmd="python3 '$PROJECT_ROOT/lib/python/enhanced_storage_manager.py' $action"
-        cmd="$cmd --nodes ${remaining_nodes[*]}"
+        local cmd="python3 '$PROJECT_ROOT/lib/python/enhanced_storage_manager.py'"
+        cmd="$cmd --nodes ${remaining_nodes[*]} -- $action"
         
         case "$action" in
             "setup-glusterfs")
@@ -502,8 +502,8 @@ manage_security_comprehensive() {
     
     if check_python_modules "enhanced_security_manager" >/dev/null 2>&1; then
         log INFO "🐍 Using Python enhanced security manager..."
-        local cmd="python3 '$PROJECT_ROOT/lib/python/enhanced_security_manager.py' $action"
-        cmd="$cmd --nodes ${remaining_nodes[*]}"
+        local cmd="python3 '$PROJECT_ROOT/lib/python/enhanced_security_manager.py'"
+        cmd="$cmd --nodes ${remaining_nodes[*]} -- $action"
         
         case "$action" in
             "generate-cert")
@@ -574,8 +574,8 @@ optimize_cluster_performance() {
     # Try enhanced storage optimization
     if check_python_modules "enhanced_storage_manager" >/dev/null 2>&1 && [[ ${#nodes[@]} -gt 0 ]]; then
         log INFO "🐍 Applying storage optimizations..."
-        if python3 "$PROJECT_ROOT/lib/python/enhanced_storage_manager.py" optimize \
-            --nodes "${nodes[@]}"; then
+        if python3 "$PROJECT_ROOT/lib/python/enhanced_storage_manager.py" \
+            --nodes "${nodes[@]}" -- optimize; then
             ((optimizations_applied++))
             log INFO "✅ Storage optimizations applied"
         else
@@ -672,8 +672,8 @@ health_check_comprehensive() {
         log INFO "💾 Running storage health check..."
         ((max_score += 25))
         
-        if python3 "$PROJECT_ROOT/lib/python/enhanced_storage_manager.py" status \
-            --nodes "${nodes[@]}" > /tmp/storage_status.json 2>/dev/null; then
+        if python3 "$PROJECT_ROOT/lib/python/enhanced_storage_manager.py" \
+            --nodes "${nodes[@]}" -- status > /tmp/storage_status.json 2>/dev/null; then
             
             local online_nodes
             online_nodes=$(jq -r '.summary.online_nodes // 0' /tmp/storage_status.json 2>/dev/null || echo "0")
@@ -696,8 +696,8 @@ health_check_comprehensive() {
         log INFO "🔐 Running security health check..."
         ((max_score += 25))
         
-        if python3 "$PROJECT_ROOT/lib/python/enhanced_security_manager.py" audit \
-            --nodes "${nodes[@]}" > /tmp/security_audit.json 2>/dev/null; then
+        if python3 "$PROJECT_ROOT/lib/python/enhanced_security_manager.py" \
+            --nodes "${nodes[@]}" -- audit > /tmp/security_audit.json 2>/dev/null; then
             
             # Parse security audit results (simplified)
             local security_score=20  # Assume decent security if audit passes

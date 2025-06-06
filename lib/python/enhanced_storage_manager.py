@@ -573,7 +573,7 @@ class StorageManager:
 def main():
     parser = argparse.ArgumentParser(description="Enhanced Pi-Swarm Storage Manager")
     parser.add_argument("--nodes", required=True, nargs="+", help="Node IP addresses")
-    parser.add_argument("--ssh-user", default="pi", help="SSH username")
+    parser.add_argument("--ssh-user", default="luser", help="SSH username")
     parser.add_argument("--ssh-pass", default="", help="SSH password")
     parser.add_argument("--config", default="/etc/piswarm/storage.yml", 
                        help="Storage configuration file")

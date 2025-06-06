@@ -657,7 +657,7 @@ class SecurityManager:
 def main():
     parser = argparse.ArgumentParser(description="Enhanced Pi-Swarm Security Manager")
     parser.add_argument("--nodes", required=True, nargs="+", help="Node IP addresses")
-    parser.add_argument("--ssh-user", default="pi", help="SSH username")
+    parser.add_argument("--ssh-user", default="luser", help="SSH username")
     parser.add_argument("--ssh-pass", default="", help="SSH password")
     parser.add_argument("--cert-dir", default="/etc/ssl/piswarm", help="Certificate directory")
     
