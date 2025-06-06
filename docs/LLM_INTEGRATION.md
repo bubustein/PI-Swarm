@@ -394,34 +394,60 @@ docker service logs piswarm-monitoring
 ## Advanced Configuration
 
 ### Custom Prompts
-Modify the analysis prompt in `/usr/local/bin/llm-alert-processor`:
+The prompt used by the alert processor determines the quality of the analysis. Edit the prompt section in `/usr/local/bin/llm-alert-processor` to tune responses:
 
 ```bash
-# Edit the prompt section
-local prompt="You are an expert DevOps engineer managing a Raspberry Pi Docker Swarm cluster.
-[Custom instructions here]
-..."
+# Example dynamic prompt template
+local prompt=$(cat <<'EOF'
+You are an expert DevOps engineer managing a Raspberry Pi Docker Swarm cluster.
+
+- Provide concise root cause analysis
+- Recommend safe remediation commands
+- Summaries must fit within five lines
+
+# Future features
+${LEARNING_MODE_HINT}  # inserted when learning mode is enabled
+${PREDICTIVE_HINT}     # inserted when predictive analysis is active
+EOF
+)
 ```
+
+Use environment variables or files to insert additional context such as the cluster name or recent alert history. Chain-of-thought instructions can be added for complex investigations.
 
 ### Integration Webhooks
-Set up custom webhooks for LLM analysis results:
+Webhooks allow external services to receive the full analysis output:
 
 ```bash
-# Add to alert processor
-curl -X POST "$CUSTOM_WEBHOOK" -d "{\"analysis\": \"$llm_response\"}"
+# Post results to an internal dashboard
+curl -X POST -H 'Content-Type: application/json' \
+     -d "{\"cluster\":\"$CLUSTER_NAME\",\"analysis\":\"$llm_response\"}" \
+     https://alerts.example.com/llm-hook
 ```
+
+When learning mode launches, webhook payloads will include a `learning_token` that helps the system refine future recommendations.
 
 ### Multiple Model Support
-Configure different models for different alert types:
+Different alert types can be routed to different models for cost and performance optimization:
 
 ```bash
-# High-priority alerts use GPT-4
-if [[ "$alert_type" == "service-down" ]]; then
-    MODEL_NAME="gpt-4"
-else
-    MODEL_NAME="gpt-3.5-turbo"
-fi
+case "$alert_type" in
+  service-down|node-down)
+    MODEL_NAME="gpt-4"          # Detailed troubleshooting
+    ;;
+  high-usage)
+    MODEL_NAME="gpt-3.5-turbo"  # Faster, cheaper
+    ;;
+  *)
+    MODEL_NAME="llama3:8b"      # Local fallback
+    ;;
+esac
+
+# Optional predictive analysis model
+PRED_MODEL="gpt-4-turbo"
+/usr/local/bin/llm-predictor "$PRED_MODEL" "$alert_context"
 ```
+
+The predictive step warns operators about likely future failures, providing time to remediate before services are impacted.
 
 ## Future Enhancements
 
