@@ -42,6 +42,8 @@ chmod +x deploy.sh
 
 # Configure your environment (interactive setup)
 ./scripts/setup-environment.sh
+# Optional: use sample environment file
+cp .env.example .env
 
 # Deploy your Pi-Swarm cluster
 ./deploy.sh
@@ -49,7 +51,8 @@ chmod +x deploy.sh
 
 ### Manual Configuration (Alternative)
 
-If you prefer manual setup, configure environment variables:
+If you prefer manual setup, configure environment variables. A reference
+`.env.example` file is included in the repository:
 
 ```bash
 # Set your Pi node IP addresses
